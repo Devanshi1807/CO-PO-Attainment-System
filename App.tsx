@@ -6,7 +6,7 @@ import {
   FileSpreadsheet, AlertCircle, TrendingUp, Clock, ArrowRight, Filter, Search, 
   GraduationCap, Save, UserCheck, Trash2, X, Key, Percent, Target, ChevronDown,
   ClipboardCheck, LayoutDashboard, History, FileText, MoreVertical, Layers,
-  Wand2, Send, Download, Check, BarChart, UserCog, Building2
+  Wand2, Send, Download, Check, BarChart, UserCog, Building2, ListTodo
 } from 'lucide-react';
 import { 
   BarChart as ReBarChart, 
@@ -48,7 +48,7 @@ const App: React.FC = () => {
   });
 
   // Mock Database
-  const [users] = useState<User[]>([
+  const [users, setUsers] = useState<User[]>([
     { id: 'a1', name: 'Dean Academics', email: 'admin@bietj.ac.in', password: 'admin', role: 'ADMIN', departmentId: 'IT' },
     { id: 't1', name: 'Dr. S.K. Gupta', email: 'skgupta@bietj.ac.in', password: '123', role: 'TEACHER', departmentId: 'IT' },
     { id: 't2', name: 'Prof. Anjali Sharma', email: 'asharma@bietj.ac.in', password: '123', role: 'TEACHER', departmentId: 'IT' },
@@ -60,10 +60,15 @@ const App: React.FC = () => {
     { id: 'c3', code: 'KCS-301', name: 'Data Structures', departmentId: 'IT', academicYear: '2023-24', teacherId: 't1', workflowStatus: 'APPROVED', lastModified: '2023-12-05', completionProgress: 100 },
   ]);
 
-  const [courseOutcomes] = useState<CourseOutcome[]>([
+  const [courseOutcomes, setCourseOutcomes] = useState<CourseOutcome[]>([
     { id: 'co1', courseId: 'c1', code: 'CO1', description: 'Analyze and design finite automata.', targetMarksPercentage: 60 },
     { id: 'co2', courseId: 'c1', code: 'CO2', description: 'Understand regular expressions and languages.', targetMarksPercentage: 60 },
     { id: 'co3', courseId: 'c1', code: 'CO3', description: 'Construct pushdown automata and CFGs.', targetMarksPercentage: 60 },
+  ]);
+
+  const [psos, setPsos] = useState<ProgramSpecificOutcome[]>([
+    { id: 'pso1', code: 'PSO1', description: 'Analyze and solve complex problems in Information Technology.' },
+    { id: 'pso2', code: 'PSO2', description: 'Design and develop software solutions using modern tools.' }
   ]);
 
   const [mappings, setMappings] = useState<CoPoMapping[]>([]);
@@ -78,11 +83,6 @@ const App: React.FC = () => {
   const pos: ProgramOutcome[] = useMemo(() => Array.from({ length: 12 }, (_, i) => ({ 
     id: `po${i+1}`, code: `PO${i+1}`, description: `Program Outcome ${i+1}` 
   })), []);
-
-  const psos: ProgramSpecificOutcome[] = [
-    { id: 'pso1', code: 'PSO1', description: 'IT System Analysis' },
-    { id: 'pso2', code: 'PSO2', description: 'Software Solutions' }
-  ];
 
   const attainmentData = useMemo(() => {
     return courseOutcomes.map(co => {
@@ -164,14 +164,14 @@ const App: React.FC = () => {
                <button onClick={() => handleQuickLogin('ADMIN')} className="w-full flex items-center justify-between p-5 bg-white/10 hover:bg-white/20 border border-white/10 rounded-2xl transition-all group">
                  <div className="flex items-center gap-4">
                    <div className="p-3 bg-white/10 rounded-xl group-hover:bg-blue-500 transition-colors"><ShieldCheck size={20}/></div>
-                   <div className="text-left"><p className="text-[10px] font-black uppercase tracking-widest opacity-60">Portal</p><p className="font-bold text-sm">Institutional Admin</p></div>
+                   <div className="text-left"><p className="text-[10px] font-black uppercase tracking-widest opacity-60">Access Panel</p><p className="font-bold text-sm">Institutional Admin</p></div>
                  </div>
                  <ChevronRight size={18} className="opacity-40 group-hover:opacity-100 translate-x-0 group-hover:translate-x-1 transition-all" />
                </button>
                <button onClick={() => handleQuickLogin('TEACHER')} className="w-full flex items-center justify-between p-5 bg-white/10 hover:bg-white/20 border border-white/10 rounded-2xl transition-all group">
                  <div className="flex items-center gap-4">
                    <div className="p-3 bg-white/10 rounded-xl group-hover:bg-slate-800 transition-colors"><Users size={20}/></div>
-                   <div className="text-left"><p className="text-[10px] font-black uppercase tracking-widest opacity-60">Portal</p><p className="font-bold text-sm">Faculty Workstation</p></div>
+                   <div className="text-left"><p className="text-[10px] font-black uppercase tracking-widest opacity-60">Access Panel</p><p className="font-bold text-sm">Faculty Workstation</p></div>
                  </div>
                  <ChevronRight size={18} className="opacity-40 group-hover:opacity-100 translate-x-0 group-hover:translate-x-1 transition-all" />
                </button>
@@ -201,7 +201,9 @@ const App: React.FC = () => {
               </div>
               {loginError && <p className="text-red-500 text-[10px] font-black uppercase text-center">{loginError}</p>}
               <button type="submit" className="w-full py-5 bg-slate-900 text-white rounded-2xl font-black uppercase tracking-widest hover:bg-black transition-all shadow-xl shadow-slate-200">Authenticate session</button>
-              <p className="text-center text-[10px] font-bold text-slate-400 uppercase tracking-tighter">Security Protocol: SAR v2.0-Audit Enabled</p>
+              <div className="mt-8 p-4 bg-slate-50 border border-slate-100 rounded-xl text-center">
+                 <p className="text-[9px] font-black text-slate-400 uppercase tracking-tighter">Institutional Support: support@bietj.ac.in</p>
+              </div>
             </form>
           </div>
         </div>
@@ -221,15 +223,17 @@ const App: React.FC = () => {
         <nav className="flex-1 p-6 space-y-1">
           <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4 px-3">Main Navigation</p>
           <NavItem icon={<LayoutDashboard size={18}/>} label="Dashboard" active={view === 'DASHBOARD'} onClick={() => setView('DASHBOARD')} />
+          
           {user?.role === 'ADMIN' && (
             <div className="pt-6 space-y-1">
-              <p className="text-[10px] font-black text-blue-600 uppercase tracking-widest mb-4 px-3">Admin Panel</p>
+              <p className="text-[10px] font-black text-blue-600 uppercase tracking-widest mb-4 px-3">Admin Control Panel</p>
               <NavItem icon={<Users size={18}/>} label="Faculty Registry" active={view === 'FACULTY'} onClick={() => setView('FACULTY')} />
               <NavItem icon={<Layers size={18}/>} label="Allotment Matrix" active={view === 'ALLOTMENT'} onClick={() => setView('ALLOTMENT')} />
-              <NavItem icon={<Building2 size={18}/>} label="Departments" active={false} />
+              <NavItem icon={<ListTodo size={18}/>} label="PSO Management" active={view === 'PSOS'} onClick={() => setView('PSOS')} />
               <NavItem icon={<Settings size={18}/>} label="OBE Master Config" active={view === 'CONFIG'} onClick={() => setView('CONFIG')} />
             </div>
           )}
+
           {user?.role === 'TEACHER' && (
             <div className="pt-6 space-y-1">
               <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4 px-3">Instructional Tools</p>
@@ -241,9 +245,9 @@ const App: React.FC = () => {
         <div className="p-6 mt-auto border-t bg-slate-50/50">
           <div className="flex items-center gap-4 mb-4">
              <div className="w-10 h-10 rounded-2xl bg-slate-900 text-white flex items-center justify-center font-black text-xs uppercase">{user?.name.charAt(0)}</div>
-             <div className="overflow-hidden">
+             <div className="overflow-hidden text-ellipsis">
                <p className="text-[10px] font-black text-slate-800 uppercase truncate">{user?.name}</p>
-               <p className="text-[9px] text-slate-400 font-bold uppercase truncate">{user?.role} Access</p>
+               <p className="text-[9px] text-slate-400 font-bold uppercase truncate">{user?.role} Mode</p>
              </div>
           </div>
           <button onClick={() => setView('LOGIN')} className="w-full py-3 bg-white border border-slate-200 rounded-xl text-[10px] font-black text-slate-500 uppercase tracking-widest hover:text-red-600 transition-all shadow-sm">Terminate Session</button>
@@ -279,50 +283,73 @@ const App: React.FC = () => {
           {/* DASHBOARD (ADMIN/HOD) */}
           {view === 'DASHBOARD' && (
             <div className="space-y-10 animate-in fade-in duration-500">
-               <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                  <StatCard label="Institutional Allotments" value={courses.length.toString()} icon={<Layers size={20}/>} trend="SAR Cycle 2024" color="blue" />
-                 <StatCard label="Awaiting HOD Action" value={courses.filter(c => c.workflowStatus === 'SUBMITTED').length.toString()} icon={<Clock size={20}/>} trend="Pending Review" color="indigo" />
-                 <StatCard label="Audit Compliant" value={courses.filter(c => c.workflowStatus === 'APPROVED').length.toString()} icon={<CheckCircle2 size={20}/>} trend="NBA Ready" color="green" />
-                 <StatCard label="Active Faculty" value={users.filter(u => u.role === 'TEACHER').length.toString()} icon={<Users size={20}/>} trend="Total Staff" color="blue" />
+                 <StatCard label="Awaiting Approval" value={courses.filter(c => c.workflowStatus === 'SUBMITTED').length.toString()} icon={<Clock size={20}/>} trend="Pending HOD Review" color="indigo" />
+                 <StatCard label="Audit Ready" value={courses.filter(c => c.workflowStatus === 'APPROVED').length.toString()} icon={<CheckCircle2 size={20}/>} trend="Locked Submissions" color="green" />
+                 <StatCard label="Faculty Strength" value={users.filter(u => u.role === 'TEACHER').length.toString()} icon={<Users size={20}/>} trend="Verified Staff" color="blue" />
                </div>
 
-               <div className="bg-white rounded-[2rem] border border-slate-200 p-8 shadow-sm">
-                  <div className="flex justify-between items-center mb-8">
-                    <h3 className="text-sm font-black uppercase tracking-widest text-slate-800 flex items-center gap-3">
-                      <History size={18} className="text-blue-600"/> Review Workflow Queue
-                    </h3>
-                    <div className="flex gap-2">
-                       <button className="px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-[9px] font-black uppercase tracking-widest text-slate-500 hover:bg-slate-100">Filter By Status</button>
+               <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
+                  <div className="xl:col-span-2 bg-white rounded-[2rem] border border-slate-200 p-8 shadow-sm">
+                    <div className="flex justify-between items-center mb-8">
+                      <h3 className="text-sm font-black uppercase tracking-widest text-slate-800 flex items-center gap-3">
+                        <History size={18} className="text-blue-600"/> Approval & Review Queue
+                      </h3>
+                      <button className="text-[10px] font-black uppercase text-blue-600">View All Queue</button>
+                    </div>
+                    <div className="space-y-3">
+                      {courses.map(course => (
+                        <div key={course.id} className="flex items-center justify-between p-5 bg-slate-50/50 rounded-2xl border border-slate-100 hover:border-slate-300 transition-all group">
+                          <div className="flex items-center gap-5">
+                             <div className="w-12 h-12 bg-white rounded-xl shadow-sm flex items-center justify-center font-black text-xs text-blue-600 border border-slate-100 group-hover:bg-blue-600 group-hover:text-white transition-all">{course.code}</div>
+                             <div>
+                               <p className="font-bold text-sm text-slate-800">{course.name}</p>
+                               <p className="text-[9px] text-slate-400 font-bold uppercase tracking-tight">Lead: {users.find(u => u.id === course.teacherId)?.name}</p>
+                             </div>
+                          </div>
+                          <div className="flex items-center gap-4">
+                             <span className={`px-3 py-1.5 rounded-full text-[8px] font-black uppercase border ${getStatusColor(course.workflowStatus)}`}>{course.workflowStatus}</span>
+                             {user?.role === 'ADMIN' && course.workflowStatus === 'SUBMITTED' && (
+                               <div className="flex gap-2">
+                                  <button onClick={() => updateWorkflow(course.id, 'APPROVED')} className="p-2.5 bg-green-50 text-green-700 rounded-xl hover:bg-green-100 transition-colors" title="Approve"><Check size={18}/></button>
+                                  <button onClick={() => updateWorkflow(course.id, 'REJECTED')} className="p-2.5 bg-red-50 text-red-700 rounded-xl hover:bg-red-100 transition-colors" title="Reject"><X size={18}/></button>
+                               </div>
+                             )}
+                             <button onClick={() => { setActiveCourse(course); setView('COURSE_MANAGE'); }} className="p-2.5 hover:bg-slate-200 rounded-xl transition-colors"><ChevronRight size={18}/></button>
+                          </div>
+                        </div>
+                      ))}
                     </div>
                   </div>
-                  <div className="space-y-3">
-                    {courses.map(course => (
-                      <div key={course.id} className="flex items-center justify-between p-5 bg-slate-50/50 rounded-2xl border border-slate-100 hover:border-slate-300 transition-all group">
-                        <div className="flex items-center gap-5">
-                           <div className="w-12 h-12 bg-white rounded-xl shadow-sm flex items-center justify-center font-black text-xs text-blue-600 border border-slate-100 group-hover:bg-blue-600 group-hover:text-white transition-all">{course.code}</div>
-                           <div>
-                             <p className="font-bold text-sm text-slate-800">{course.name}</p>
-                             <p className="text-[9px] text-slate-400 font-bold uppercase tracking-tight">Lead Instructor: {users.find(u => u.id === course.teacherId)?.name}</p>
-                           </div>
-                        </div>
-                        <div className="flex items-center gap-4">
-                           <span className={`px-3 py-1.5 rounded-full text-[8px] font-black uppercase border ${getStatusColor(course.workflowStatus)}`}>{course.workflowStatus}</span>
-                           {user?.role === 'ADMIN' && course.workflowStatus === 'SUBMITTED' && (
-                             <div className="flex gap-2">
-                                <button onClick={() => updateWorkflow(course.id, 'APPROVED')} className="p-2.5 bg-green-50 text-green-700 rounded-xl hover:bg-green-100 transition-colors" title="Approve"><Check size={18}/></button>
-                                <button onClick={() => updateWorkflow(course.id, 'REJECTED')} className="p-2.5 bg-red-50 text-red-700 rounded-xl hover:bg-red-100 transition-colors" title="Reject"><X size={18}/></button>
-                             </div>
-                           )}
-                           <button onClick={() => { setActiveCourse(course); setView('COURSE_MANAGE'); }} className="p-2.5 hover:bg-slate-200 rounded-xl transition-colors"><ChevronRight size={18}/></button>
-                        </div>
+
+                  <div className="bg-slate-900 rounded-[2.5rem] p-8 text-white flex flex-col justify-between shadow-2xl">
+                    <div>
+                      <h4 className="text-xs font-black uppercase tracking-widest text-blue-400 mb-6">Departmental Health</h4>
+                      <div className="space-y-6">
+                         <div>
+                            <div className="flex justify-between text-[10px] font-black uppercase mb-2"><span>Syllabus Mapping</span><span>92%</span></div>
+                            <div className="h-1.5 bg-white/10 rounded-full overflow-hidden"><div className="h-full bg-blue-500" style={{width: '92%'}}></div></div>
+                         </div>
+                         <div>
+                            <div className="flex justify-between text-[10px] font-black uppercase mb-2"><span>Marks Entry Compliance</span><span>45%</span></div>
+                            <div className="h-1.5 bg-white/10 rounded-full overflow-hidden"><div className="h-full bg-amber-500" style={{width: '45%'}}></div></div>
+                         </div>
+                         <div>
+                            <div className="flex justify-between text-[10px] font-black uppercase mb-2"><span>Attainment Calculations</span><span>30%</span></div>
+                            <div className="h-1.5 bg-white/10 rounded-full overflow-hidden"><div className="h-full bg-red-500" style={{width: '30%'}}></div></div>
+                         </div>
                       </div>
-                    ))}
+                    </div>
+                    <div className="mt-10 p-5 bg-white/5 rounded-2xl border border-white/10">
+                       <p className="text-[10px] font-bold text-slate-400 uppercase leading-relaxed">System alerted 3 faculty members regarding pending mark entries for KCS-502, KCS-301.</p>
+                    </div>
                   </div>
                </div>
             </div>
           )}
 
-          {/* FACULTY REGISTRY (ADMIN PORTAL) */}
+          {/* FACULTY REGISTRY (ADMIN) */}
           {view === 'FACULTY' && (
             <div className="space-y-8 animate-in fade-in">
                <div className="flex justify-between items-end">
@@ -337,7 +364,7 @@ const App: React.FC = () => {
                      <thead className="bg-slate-50 border-b">
                         <tr className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
                            <th className="p-8">Faculty Member</th>
-                           <th className="p-8">Email ID</th>
+                           <th className="p-8">Institutional Email</th>
                            <th className="p-8">Department</th>
                            <th className="p-8">Access Status</th>
                            <th className="p-8 text-right">Actions</th>
@@ -369,7 +396,38 @@ const App: React.FC = () => {
             </div>
           )}
 
-          {/* ALLOTMENT MATRIX (ADMIN PORTAL) */}
+          {/* PSO MANAGEMENT (ADMIN) */}
+          {view === 'PSOS' && (
+            <div className="space-y-10 animate-in fade-in duration-500">
+               <div className="flex justify-between items-end">
+                 <div>
+                   <h2 className="text-2xl font-black text-slate-800 uppercase">Program Specific Outcomes (PSO)</h2>
+                   <p className="text-slate-500 text-sm">Define outcomes that specifically describe what students of {activeDept} will be able to do.</p>
+                 </div>
+                 <button onClick={() => {
+                   const newPso: ProgramSpecificOutcome = { id: `pso${psos.length + 1}`, code: `PSO${psos.length + 1}`, description: 'New PSO description' };
+                   setPsos([...psos, newPso]);
+                 }} className="bg-blue-600 text-white px-8 py-4 rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-blue-700 shadow-xl">Define New PSO</button>
+               </div>
+               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                 {psos.map(pso => (
+                   <div key={pso.id} className="bg-white rounded-[2.5rem] border border-slate-200 p-8 shadow-sm hover:border-blue-300 transition-all flex flex-col">
+                      <div className="flex justify-between items-center mb-6">
+                         <div className="w-12 h-12 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center font-black text-sm">{pso.code}</div>
+                         <button onClick={() => setPsos(psos.filter(p => p.id !== pso.id))} className="text-slate-300 hover:text-red-500 transition-colors"><Trash2 size={18}/></button>
+                      </div>
+                      <textarea 
+                        className="flex-1 bg-slate-50 rounded-2xl p-4 text-sm font-medium text-slate-700 outline-none focus:ring-4 focus:ring-blue-100 min-h-[100px] border border-slate-100"
+                        value={pso.description}
+                        onChange={(e) => setPsos(psos.map(p => p.id === pso.id ? {...p, description: e.target.value} : p))}
+                      />
+                   </div>
+                 ))}
+               </div>
+            </div>
+          )}
+
+          {/* ALLOTMENT MATRIX (ADMIN) */}
           {view === 'ALLOTMENT' && (
             <div className="space-y-10 animate-in fade-in duration-500">
                <div className="flex justify-between items-end">
@@ -416,20 +474,68 @@ const App: React.FC = () => {
                    </tbody>
                  </table>
                </div>
-               <div className="p-6 bg-blue-600 rounded-[2rem] text-white flex justify-between items-center shadow-xl shadow-blue-100">
-                  <div className="flex items-center gap-4">
-                    <div className="p-3 bg-white/10 rounded-xl"><AlertCircle size={24}/></div>
-                    <div>
-                      <p className="text-[10px] font-black uppercase opacity-60">Compliance Alert</p>
-                      <p className="font-bold text-sm">3 Courses currently unmapped to POs. Action Required.</p>
-                    </div>
-                  </div>
-                  <button className="px-8 py-3 bg-white text-blue-600 rounded-xl font-black text-[10px] uppercase shadow-lg">Push Reminder to Faculty</button>
-               </div>
             </div>
           )}
 
-          {/* MY WORKLOAD (TEACHER VIEW) */}
+          {/* CONFIGURATION (ADMIN) */}
+          {view === 'CONFIG' && (
+            <div className="max-w-4xl mx-auto space-y-10 animate-in slide-in-from-bottom-4 duration-700">
+              <div className="text-center">
+                <h2 className="text-3xl font-black text-slate-900 tracking-tight uppercase">Institutional Policy Controls</h2>
+                <p className="text-slate-500 text-sm font-medium">Standardize institution-wide calculation and threshold parameters.</p>
+              </div>
+              <div className="bg-white rounded-[3rem] border border-slate-200 p-12 shadow-sm space-y-12">
+                 <section className="space-y-6">
+                   <h4 className="text-xs font-black text-blue-600 uppercase tracking-widest flex items-center gap-2"><Percent size={18}/> Global Weightage Balancer</h4>
+                   <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                     <div className="space-y-2">
+                       <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Internal Assessment (%)</label>
+                       <input 
+                         type="number" value={config.internalWeightage} 
+                         onChange={e => {
+                           const val = Math.min(100, Math.max(0, parseInt(e.target.value) || 0));
+                           setConfig({...config, internalWeightage: val, externalWeightage: 100 - val});
+                         }} 
+                         className="w-full p-5 bg-slate-50 border border-slate-200 rounded-2xl font-black text-xl outline-none focus:ring-4 focus:ring-blue-100" 
+                       />
+                     </div>
+                     <div className="space-y-2">
+                       <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">External/End-Sem (%)</label>
+                       <input 
+                         type="number" value={config.externalWeightage} 
+                         onChange={e => {
+                           const val = Math.min(100, Math.max(0, parseInt(e.target.value) || 0));
+                           setConfig({...config, externalWeightage: val, internalWeightage: 100 - val});
+                         }} 
+                         className="w-full p-5 bg-slate-50 border border-slate-200 rounded-2xl font-black text-xl outline-none focus:ring-4 focus:ring-blue-100" 
+                       />
+                     </div>
+                   </div>
+                 </section>
+                 <section className="space-y-6">
+                   <h4 className="text-xs font-black text-blue-600 uppercase tracking-widest flex items-center gap-2"><Target size={18}/> Attainment Level Entry Thresholds</h4>
+                   <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                     {[1, 2, 3].map(lvl => (
+                       <div key={lvl} className="p-8 bg-slate-900 rounded-[2rem] text-white shadow-xl shadow-slate-200 group">
+                         <p className="text-[10px] font-black text-blue-400 uppercase mb-4">Level {lvl}</p>
+                         <div className="flex items-end gap-2">
+                            <input 
+                              type="number" value={(config.attainmentLevels as any)[`level${lvl}`]} 
+                              onChange={e => setConfig({...config, attainmentLevels: {...config.attainmentLevels, [`level${lvl}`]: parseInt(e.target.value) || 0}})} 
+                              className="bg-transparent text-3xl font-black w-full outline-none border-b-2 border-white/20 focus:border-blue-400 transition-all" 
+                            />
+                            <span className="text-white/40 font-black mb-1 text-xl">%</span>
+                         </div>
+                       </div>
+                     ))}
+                   </div>
+                 </section>
+                 <button className="w-full py-6 bg-blue-600 text-white rounded-3xl font-black uppercase tracking-[0.2em] text-xs hover:bg-blue-700 transition-all shadow-2xl">Push Policy to Departments</button>
+              </div>
+            </div>
+          )}
+
+          {/* TEACHER WORKLOAD VIEW */}
           {view === 'MY_COURSES' && (
             <div className="space-y-10 animate-in fade-in duration-500">
                <div>
@@ -464,7 +570,7 @@ const App: React.FC = () => {
             </div>
           )}
 
-          {/* COURSE MANAGEMENT (FACULTY WORKFLOW) */}
+          {/* COURSE MANAGEMENT (TEACHER) */}
           {view === 'COURSE_MANAGE' && activeCourse && (
             <div className="space-y-10 animate-in slide-in-from-bottom-4 duration-500">
                <div className="flex items-center gap-4">
@@ -499,7 +605,7 @@ const App: React.FC = () => {
                              </div>
                            </div>
                          ))}
-                         <button className="w-full py-6 border-2 border-dashed border-slate-200 rounded-3xl text-slate-300 font-black uppercase text-[10px] tracking-widest hover:border-blue-300 hover:text-blue-400 transition-all">Add New Outcome</button>
+                         <button className="w-full py-6 border-2 border-dashed border-slate-200 rounded-3xl text-slate-300 font-black uppercase text-[10px] tracking-widest hover:border-blue-300 hover:text-blue-400 transition-all">Add New Outcome Component</button>
                        </div>
                     </div>
                   )}
@@ -547,15 +653,15 @@ const App: React.FC = () => {
                        <div className="flex justify-between items-center">
                          <h3 className="font-black text-sm uppercase tracking-widest text-slate-800">Marks Entry Console</h3>
                          <div className="flex gap-3">
-                           <button className="px-5 py-2.5 bg-blue-600 text-white rounded-2xl text-[10px] font-black uppercase shadow-lg hover:bg-blue-700 transition-all"><Save size={16} className="inline mr-2"/> Save Session</button>
+                           <button className="px-5 py-2.5 bg-blue-600 text-white rounded-2xl text-[10px] font-black uppercase shadow-lg hover:bg-blue-700 transition-all"><Save size={16} className="inline mr-2"/> Save Current Grid</button>
                          </div>
                        </div>
                        <div className="border border-slate-100 rounded-[2rem] overflow-hidden">
                          <table className="w-full text-left">
                            <thead className="bg-slate-50">
                              <tr>
-                               <th className="p-6 text-[10px] font-black text-slate-400 uppercase tracking-widest">ID</th>
-                               <th className="p-6 text-[10px] font-black text-slate-400 uppercase tracking-widest">Name</th>
+                               <th className="p-6 text-[10px] font-black text-slate-400 uppercase tracking-widest">Roll ID</th>
+                               <th className="p-6 text-[10px] font-black text-slate-400 uppercase tracking-widest">Candidate Name</th>
                                {courseOutcomes.map(co => <th key={co.id} className="p-6 text-center text-[10px] font-black text-blue-600 uppercase">{co.code} (%)</th>)}
                              </tr>
                            </thead>
@@ -630,71 +736,13 @@ const App: React.FC = () => {
                </div>
             </div>
           )}
-
-          {/* OBE CONFIG (ADMIN PORTAL) */}
-          {view === 'CONFIG' && (
-            <div className="max-w-4xl mx-auto space-y-10 animate-in slide-in-from-bottom-4 duration-700">
-              <div className="text-center">
-                <h2 className="text-3xl font-black text-slate-900 tracking-tight uppercase">Institutional Policy Controls</h2>
-                <p className="text-slate-500 text-sm font-medium">Standardize institution-wide calculation and threshold parameters.</p>
-              </div>
-              <div className="bg-white rounded-[3rem] border border-slate-200 p-12 shadow-sm space-y-12">
-                 <section className="space-y-6">
-                   <h4 className="text-xs font-black text-blue-600 uppercase tracking-widest flex items-center gap-2"><Percent size={18}/> Global Weightage Balancer</h4>
-                   <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                     <div className="space-y-2">
-                       <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Internal (%)</label>
-                       <input 
-                         type="number" value={config.internalWeightage} 
-                         onChange={e => {
-                           const val = Math.min(100, Math.max(0, parseInt(e.target.value) || 0));
-                           setConfig({...config, internalWeightage: val, externalWeightage: 100 - val});
-                         }} 
-                         className="w-full p-5 bg-slate-50 border border-slate-200 rounded-2xl font-black text-xl outline-none focus:ring-4 focus:ring-blue-100" 
-                       />
-                     </div>
-                     <div className="space-y-2">
-                       <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">External (%)</label>
-                       <input 
-                         type="number" value={config.externalWeightage} 
-                         onChange={e => {
-                           const val = Math.min(100, Math.max(0, parseInt(e.target.value) || 0));
-                           setConfig({...config, externalWeightage: val, internalWeightage: 100 - val});
-                         }} 
-                         className="w-full p-5 bg-slate-50 border border-slate-200 rounded-2xl font-black text-xl outline-none focus:ring-4 focus:ring-blue-100" 
-                       />
-                     </div>
-                   </div>
-                 </section>
-                 <section className="space-y-6">
-                   <h4 className="text-xs font-black text-blue-600 uppercase tracking-widest flex items-center gap-2"><Target size={18}/> Attainment Level Entry Thresholds</h4>
-                   <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                     {[1, 2, 3].map(lvl => (
-                       <div key={lvl} className="p-8 bg-slate-900 rounded-[2rem] text-white shadow-xl shadow-slate-200">
-                         <p className="text-[10px] font-black text-blue-400 uppercase mb-4">Level {lvl}</p>
-                         <div className="flex items-end gap-2">
-                            <input 
-                              type="number" value={(config.attainmentLevels as any)[`level${lvl}`]} 
-                              onChange={e => setConfig({...config, attainmentLevels: {...config.attainmentLevels, [`level${lvl}`]: parseInt(e.target.value) || 0}})} 
-                              className="bg-transparent text-3xl font-black w-full outline-none border-b-2 border-white/20 focus:border-blue-400 transition-all" 
-                            />
-                            <span className="text-white/40 font-black mb-1 text-xl">%</span>
-                         </div>
-                       </div>
-                     ))}
-                   </div>
-                 </section>
-                 <button className="w-full py-6 bg-blue-600 text-white rounded-3xl font-black uppercase tracking-[0.2em] text-xs hover:bg-blue-700 transition-all shadow-2xl shadow-blue-100">Push Policy to Departments</button>
-              </div>
-            </div>
-          )}
         </div>
       </main>
     </div>
   );
 };
 
-// UI Components
+// ERP Components
 const NavItem = ({ icon, label, active = false, onClick }: { icon: React.ReactNode, label: string, active?: boolean, onClick?: () => void }) => (
   <button onClick={onClick} className={`w-full flex items-center gap-4 p-4 rounded-2xl text-[11px] font-black uppercase tracking-widest transition-all duration-300 ${active ? 'bg-blue-600 text-white shadow-xl shadow-blue-100 translate-x-1' : 'text-slate-400 hover:bg-slate-50 hover:text-slate-600'}`}>
     <span className={active ? 'text-white' : ''}>{icon}</span>
