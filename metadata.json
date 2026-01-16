@@ -1,0 +1,5 @@
+{
+  "name": "Generic OBE CO-PO Attainment System",
+  "description": "A fully configurable Outcome Based Education (OBE) system designed to calculate Course Outcome (CO) and Program Outcome (PO) attainment. Features dynamic threshold settings, articulation mapping, and AI-assisted outcome generation.",
+  "requestFramePermissions": []
+}
