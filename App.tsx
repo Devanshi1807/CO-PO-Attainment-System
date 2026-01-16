@@ -1,180 +1,208 @@
 
 import React, { useState, useMemo } from 'react';
 import { 
-  ShieldCheck, 
-  Users, 
-  Lock, 
-  Mail, 
-  BookOpen, 
-  Calendar, 
-  LogOut,
-  Plus,
-  Settings,
-  Database,
-  CheckCircle2,
-  ChevronRight,
-  UserPlus,
-  Calculator,
-  BarChart3,
-  FileSpreadsheet,
-  AlertCircle,
-  TrendingUp,
-  Clock,
-  ArrowRight,
-  Filter,
-  Search,
-  GraduationCap,
-  Save,
-  UserCheck,
-  Trash2,
-  X,
-  Key
+  ShieldCheck, Users, Lock, Mail, BookOpen, Calendar, LogOut, Plus, Settings, 
+  Database, CheckCircle2, ChevronRight, UserPlus, Calculator, BarChart3, 
+  FileSpreadsheet, AlertCircle, TrendingUp, Clock, ArrowRight, Filter, Search, 
+  GraduationCap, Save, UserCheck, Trash2, X, Key, Percent, Target, ChevronDown,
+  ClipboardCheck, LayoutDashboard, History, FileText, MoreVertical, Layers,
+  Wand2, Send, Download, Check, BarChart, UserCog, Building2
 } from 'lucide-react';
-import { User, Course, CourseOutcome, ProgramOutcome, OBEConfig, AssessmentTool } from './types';
-
-type ViewState = 'LOGIN' | 'ADMIN_DASH' | 'ADMIN_FACULTY' | 'ADMIN_ALLOTMENT' | 'ADMIN_CONFIG' | 'TEACHER_DASH' | 'MY_COURSES' | 'CALCULATION_VIEW' | 'MARK_ENTRY';
+import { 
+  BarChart as ReBarChart, 
+  Bar, 
+  XAxis, 
+  YAxis, 
+  CartesianGrid, 
+  Tooltip, 
+  Legend, 
+  ResponsiveContainer,
+  Cell
+} from 'recharts';
+import { User, Course, CourseOutcome, ProgramOutcome, OBEConfig, WorkflowStatus, ProgramSpecificOutcome, CoPoMapping, StudentMark } from './types';
+import { generateCourseOutcomes } from './services/geminiService';
 
 const BIET_LOGO = "https://upload.wikimedia.org/wikipedia/en/3/36/Bundelkhand_Institute_of_Engineering_and_Technology_Logo.png";
 
 const App: React.FC = () => {
-  const [view, setView] = useState<ViewState>('LOGIN');
+  // Navigation & Identity
+  const [view, setView] = useState('LOGIN');
   const [user, setUser] = useState<User | null>(null);
-  const [activeCourse, setActiveCourse] = useState<Course | null>(null);
-  const [isAddFacultyModalOpen, setIsAddFacultyModalOpen] = useState(false);
+  const [loginEmail, setLoginEmail] = useState('');
+  const [loginPassword, setLoginPassword] = useState('');
+  const [loginError, setLoginError] = useState('');
   
-  // Filtering States
-  const [yearFilter, setYearFilter] = useState<string>('All');
-  const [deptFilter, setDeptFilter] = useState<string>('All');
+  // Active Management States
+  const [activeCourse, setActiveCourse] = useState<Course | null>(null);
+  const [activeYear, setActiveYear] = useState('2024-25');
+  const [activeDept, setActiveDept] = useState('Information Technology');
+  const [courseTab, setCourseTab] = useState<'CO' | 'MAPPING' | 'MARKS' | 'ATTAINMENT'>('CO');
 
-  // Stateful Config
+  // Config (Institutional Policy)
   const [config, setConfig] = useState<OBEConfig>({
     institutionName: "BIET Jhansi",
+    internalWeightage: 30,
+    externalWeightage: 70,
+    defaultTargetPercentage: 60,
     attainmentLevels: { level1: 50, level2: 60, level3: 70 }
   });
 
-  // Stateful Mock Data
+  // Mock Database
+  const [users] = useState<User[]>([
+    { id: 'a1', name: 'Dean Academics', email: 'admin@bietj.ac.in', password: 'admin', role: 'ADMIN', departmentId: 'IT' },
+    { id: 't1', name: 'Dr. S.K. Gupta', email: 'skgupta@bietj.ac.in', password: '123', role: 'TEACHER', departmentId: 'IT' },
+    { id: 't2', name: 'Prof. Anjali Sharma', email: 'asharma@bietj.ac.in', password: '123', role: 'TEACHER', departmentId: 'IT' },
+  ]);
+
   const [courses, setCourses] = useState<Course[]>([
-    { id: 'c1', code: 'KCS-501', name: 'Theory of Computation', departmentId: 'IT', academicYear: '2024-25', teacherId: 't1' },
-    { id: 'c2', code: 'KCS-502', name: 'Computer Networks', departmentId: 'IT', academicYear: '2024-25', teacherId: 't1' },
-    { id: 'c3', code: 'KCS-301', name: 'Data Structures', departmentId: 'CS', academicYear: '2023-24', teacherId: 't1' },
-    { id: 'c4', code: 'KAI-501', name: 'Machine Learning', departmentId: 'AI-ML', academicYear: '2024-25', teacherId: 't1' },
-    { id: 'c5', code: 'KCS-501', name: 'Theory of Computation', departmentId: 'CS', academicYear: '2024-25', teacherId: 't2' }
+    { id: 'c1', code: 'KCS-501', name: 'Theory of Computation', departmentId: 'IT', academicYear: '2024-25', teacherId: 't1', workflowStatus: 'DRAFT', lastModified: '2024-10-12', completionProgress: 65, description: 'Formal languages, automata theory, and computability.' },
+    { id: 'c2', code: 'KCS-502', name: 'Computer Networks', departmentId: 'IT', academicYear: '2024-25', teacherId: 't2', workflowStatus: 'SUBMITTED', lastModified: '2024-10-10', completionProgress: 100 },
+    { id: 'c3', code: 'KCS-301', name: 'Data Structures', departmentId: 'IT', academicYear: '2023-24', teacherId: 't1', workflowStatus: 'APPROVED', lastModified: '2023-12-05', completionProgress: 100 },
   ]);
 
-  const [faculty, setFaculty] = useState<(User & { password?: string })[]>([
-    { id: 't1', name: 'Dr. S.K. Gupta', email: 'skgupta@bietj.ac.in', role: 'TEACHER', departmentId: 'IT' },
-    { id: 't2', name: 'Prof. Amit Sharma', email: 'asharma@bietj.ac.in', role: 'TEACHER', departmentId: 'CS' },
-    { id: 't3', name: 'Dr. Neha Verma', email: 'nverma@bietj.ac.in', role: 'TEACHER', departmentId: 'AI-ML' },
+  const [courseOutcomes] = useState<CourseOutcome[]>([
+    { id: 'co1', courseId: 'c1', code: 'CO1', description: 'Analyze and design finite automata.', targetMarksPercentage: 60 },
+    { id: 'co2', courseId: 'c1', code: 'CO2', description: 'Understand regular expressions and languages.', targetMarksPercentage: 60 },
+    { id: 'co3', courseId: 'c1', code: 'CO3', description: 'Construct pushdown automata and CFGs.', targetMarksPercentage: 60 },
   ]);
 
-  // Form State for Adding Faculty
-  const [newFaculty, setNewFaculty] = useState({
-    name: '',
-    email: '',
-    departmentId: 'IT',
-    password: ''
-  });
-
-  const [pos] = useState<ProgramOutcome[]>(
-    Array.from({ length: 12 }, (_, i) => ({ id: `po${i+1}`, code: `PO${i+1}`, description: `PO Desc ${i+1}`, programId: 'p1' }))
-  );
-
-  const [cos] = useState<CourseOutcome[]>([
-    { id: 'co1', courseId: 'c1', code: 'CO1', description: 'Understand Automata', targetMarksPercentage: 60 },
-    { id: 'co2', courseId: 'c1', code: 'CO2', description: 'Design CFGs', targetMarksPercentage: 60 }
+  const [mappings, setMappings] = useState<CoPoMapping[]>([]);
+  const [studentMarks, setStudentMarks] = useState<StudentMark[]>([
+    { studentId: 'S01', studentName: 'Aditya Kumar', coMarks: { co1: 85, co2: 40, co3: 70 } },
+    { studentId: 'S02', studentName: 'Priya Singh', coMarks: { co1: 65, co2: 75, co3: 30 } },
+    { studentId: 'S03', studentName: 'Rahul Verma', coMarks: { co1: 90, co2: 88, co3: 85 } },
+    { studentId: 'S04', studentName: 'Sneha Gupta', coMarks: { co1: 45, co2: 55, co3: 60 } },
+    { studentId: 'S05', studentName: 'Vikram Das', coMarks: { co1: 72, co2: 68, co3: 74 } },
   ]);
 
-  const calculateAttainment = (coId: string) => {
-    const percentAboveThreshold = 75; 
-    if (percentAboveThreshold >= config.attainmentLevels.level3) return 3;
-    if (percentAboveThreshold >= config.attainmentLevels.level2) return 2;
-    if (percentAboveThreshold >= config.attainmentLevels.level1) return 1;
-    return 0;
-  };
+  const pos: ProgramOutcome[] = useMemo(() => Array.from({ length: 12 }, (_, i) => ({ 
+    id: `po${i+1}`, code: `PO${i+1}`, description: `Program Outcome ${i+1}` 
+  })), []);
 
-  const handleLogin = (role: 'ADMIN' | 'TEACHER') => {
-    setUser({
-      id: role === 'ADMIN' ? 'a1' : 't1',
-      name: role === 'ADMIN' ? 'Dean Academics' : 'Dr. S.K. Gupta',
-      email: role === 'ADMIN' ? 'admin@bietj.ac.in' : 'skgupta@bietj.ac.in',
-      role,
-      departmentId: 'IT'
+  const psos: ProgramSpecificOutcome[] = [
+    { id: 'pso1', code: 'PSO1', description: 'IT System Analysis' },
+    { id: 'pso2', code: 'PSO2', description: 'Software Solutions' }
+  ];
+
+  const attainmentData = useMemo(() => {
+    return courseOutcomes.map(co => {
+      const studentScores = studentMarks.map(s => s.coMarks[co.id] || 0);
+      const countAboveThreshold = studentScores.filter(s => s >= config.defaultTargetPercentage).length;
+      const percentageAbove = (countAboveThreshold / studentMarks.length) * 100;
+      let level = 0;
+      if (percentageAbove >= config.attainmentLevels.level3) level = 3;
+      else if (percentageAbove >= config.attainmentLevels.level2) level = 2;
+      else if (percentageAbove >= config.attainmentLevels.level1) level = 1;
+      return { name: co.code, attainment: level, percentage: percentageAbove, threshold: config.defaultTargetPercentage };
     });
-    setView(role === 'ADMIN' ? 'ADMIN_DASH' : 'TEACHER_DASH');
+  }, [courseOutcomes, studentMarks, config]);
+
+  const handleLogin = (e: React.FormEvent) => {
+    e.preventDefault();
+    const foundUser = users.find(u => u.email === loginEmail && u.password === loginPassword);
+    if (foundUser) {
+      setUser(foundUser);
+      setView(foundUser.role === 'ADMIN' ? 'DASHBOARD' : 'MY_COURSES');
+      setLoginError('');
+    } else {
+      setLoginError('Invalid institutional credentials.');
+    }
   };
 
-  const handleCourseSelect = (course: Course) => {
-    setActiveCourse(course);
-    setView('CALCULATION_VIEW');
+  const handleQuickLogin = (role: 'ADMIN' | 'TEACHER') => {
+    const creds = role === 'ADMIN' 
+      ? { email: 'admin@bietj.ac.in', pass: 'admin' }
+      : { email: 'skgupta@bietj.ac.in', pass: '123' };
+    setLoginEmail(creds.email);
+    setLoginPassword(creds.pass);
   };
 
-  const handleAllotmentChange = (courseId: string, teacherId: string) => {
+  const updateWorkflow = (courseId: string, newStatus: WorkflowStatus) => {
+    setCourses(prev => prev.map(c => c.id === courseId ? { ...c, workflowStatus: newStatus, lastModified: new Date().toISOString().split('T')[0] } : c));
+  };
+
+  const updateAllotment = (courseId: string, teacherId: string) => {
     setCourses(prev => prev.map(c => c.id === courseId ? { ...c, teacherId } : c));
   };
 
-  const handleAddFaculty = () => {
-    if (!newFaculty.name || !newFaculty.email || !newFaculty.password) {
-      alert("Please fill all fields");
-      return;
-    }
-    const id = 't' + (faculty.length + 1);
-    const facultyMember: User & { password?: string } = {
-      id,
-      name: newFaculty.name,
-      email: newFaculty.email,
-      role: 'TEACHER',
-      departmentId: newFaculty.departmentId,
-      password: newFaculty.password
-    };
-    setFaculty([...faculty, facultyMember]);
-    setNewFaculty({ name: '', email: '', departmentId: 'IT', password: '' });
-    setIsAddFacultyModalOpen(false);
-  };
-
-  const handleDeleteFaculty = (id: string) => {
-    if (window.confirm("Are you sure you want to remove this faculty member? This will also unassign them from their courses.")) {
-      setFaculty(faculty.filter(f => f.id !== id));
-      setCourses(courses.map(c => c.teacherId === id ? { ...c, teacherId: '' } : c));
-    }
-  };
-
-  const filteredCourses = useMemo(() => {
-    return courses.filter(c => {
-      const isMine = user?.role === 'ADMIN' ? true : c.teacherId === user?.id;
-      const matchYear = yearFilter === 'All' || c.academicYear === yearFilter;
-      const matchDept = deptFilter === 'All' || c.departmentId === deptFilter;
-      return isMine && matchYear && matchDept;
+  const toggleMapping = (coId: string, poId: string) => {
+    setMappings(prev => {
+      const existing = prev.find(m => m.coId === coId && m.poId === poId);
+      if (existing) {
+        const nextLevel = (existing.level + 1) % 4;
+        return prev.map(m => (m.coId === coId && m.poId === poId) ? { ...m, level: nextLevel } : m);
+      }
+      return [...prev, { courseId: activeCourse!.id, coId, poId, level: 1 }];
     });
-  }, [courses, user, yearFilter, deptFilter]);
+  };
 
-  const uniqueYears = Array.from(new Set(courses.map(c => c.academicYear)));
-  const uniqueDepts = Array.from(new Set(courses.map(c => c.departmentId)));
+  const getMappingLevel = (coId: string, poId: string) => mappings.find(m => m.coId === coId && m.poId === poId)?.level || 0;
+
+  const getStatusColor = (status: WorkflowStatus) => {
+    const colors = {
+      DRAFT: 'bg-slate-100 text-slate-600 border-slate-200',
+      SUBMITTED: 'bg-blue-50 text-blue-700 border-blue-200',
+      REVIEWED: 'bg-purple-50 text-purple-700 border-purple-200',
+      APPROVED: 'bg-green-50 text-green-700 border-green-200',
+      LOCKED: 'bg-slate-900 text-white border-slate-800',
+      REJECTED: 'bg-red-50 text-red-700 border-red-200'
+    };
+    return colors[status];
+  };
 
   if (view === 'LOGIN') {
     return (
-      <div className="min-h-screen bg-slate-100 flex items-center justify-center p-6">
-        <div className="max-w-md w-full bg-white rounded-2xl shadow-2xl overflow-hidden border border-slate-200">
-          <div className="bg-[#003399] p-8 text-center">
-            <img src={BIET_LOGO} className="w-20 h-20 mx-auto mb-4 bg-white rounded-full p-1" alt="BIET Logo" />
-            <h1 className="text-white font-bold text-xl uppercase tracking-wider">BIET OBE Portal</h1>
-            <p className="text-blue-100 text-xs mt-1">Outcome Based Education System</p>
+      <div className="min-h-screen bg-[#f8fafc] flex items-center justify-center p-6 antialiased">
+        <div className="max-w-4xl w-full grid grid-cols-1 md:grid-cols-2 bg-white rounded-[3rem] shadow-2xl overflow-hidden border border-slate-200">
+          <div className="bg-[#003399] p-12 text-white flex flex-col justify-between">
+            <div>
+              <img src={BIET_LOGO} className="w-20 h-20 mb-8 bg-white rounded-full p-2" alt="BIET" />
+              <h1 className="text-4xl font-black uppercase tracking-tighter leading-none mb-4">ERP OBE<br/>System</h1>
+              <p className="text-blue-100/60 text-xs font-bold uppercase tracking-widest">Bundelkhand Institute of Engineering & Technology</p>
+            </div>
+            <div className="space-y-4">
+               <button onClick={() => handleQuickLogin('ADMIN')} className="w-full flex items-center justify-between p-5 bg-white/10 hover:bg-white/20 border border-white/10 rounded-2xl transition-all group">
+                 <div className="flex items-center gap-4">
+                   <div className="p-3 bg-white/10 rounded-xl group-hover:bg-blue-500 transition-colors"><ShieldCheck size={20}/></div>
+                   <div className="text-left"><p className="text-[10px] font-black uppercase tracking-widest opacity-60">Portal</p><p className="font-bold text-sm">Institutional Admin</p></div>
+                 </div>
+                 <ChevronRight size={18} className="opacity-40 group-hover:opacity-100 translate-x-0 group-hover:translate-x-1 transition-all" />
+               </button>
+               <button onClick={() => handleQuickLogin('TEACHER')} className="w-full flex items-center justify-between p-5 bg-white/10 hover:bg-white/20 border border-white/10 rounded-2xl transition-all group">
+                 <div className="flex items-center gap-4">
+                   <div className="p-3 bg-white/10 rounded-xl group-hover:bg-slate-800 transition-colors"><Users size={20}/></div>
+                   <div className="text-left"><p className="text-[10px] font-black uppercase tracking-widest opacity-60">Portal</p><p className="font-bold text-sm">Faculty Workstation</p></div>
+                 </div>
+                 <ChevronRight size={18} className="opacity-40 group-hover:opacity-100 translate-x-0 group-hover:translate-x-1 transition-all" />
+               </button>
+            </div>
           </div>
-          <div className="p-8 space-y-6">
-            <div className="space-y-2">
-              <label className="text-xs font-bold text-slate-500 uppercase">Institutional Email</label>
-              <div className="relative">
-                <Mail className="absolute left-3 top-3 text-slate-400" size={18} />
-                <input type="text" placeholder="faculty@bietj.ac.in" className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" />
+          <div className="p-12">
+            <div className="mb-10">
+              <h2 className="text-2xl font-black text-slate-800 uppercase tracking-tight">System Login</h2>
+              <p className="text-slate-400 text-sm font-medium">Enter your institutional credentials to continue.</p>
+            </div>
+            <form onSubmit={handleLogin} className="space-y-6">
+              <div className="space-y-4">
+                <div className="space-y-1">
+                  <label className="text-[10px] font-black text-slate-400 uppercase ml-2">Institutional ID</label>
+                  <div className="relative">
+                    <Mail className="absolute left-4 top-4 text-slate-300" size={20} />
+                    <input type="email" required value={loginEmail} onChange={e => setLoginEmail(e.target.value)} className="w-full pl-12 pr-4 py-4 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-4 focus:ring-blue-100 outline-none font-bold" placeholder="name@bietj.ac.in" />
+                  </div>
+                </div>
+                <div className="space-y-1">
+                  <label className="text-[10px] font-black text-slate-400 uppercase ml-2">Passcode</label>
+                  <div className="relative">
+                    <Lock className="absolute left-4 top-4 text-slate-300" size={20} />
+                    <input type="password" required value={loginPassword} onChange={e => setLoginPassword(e.target.value)} className="w-full pl-12 pr-4 py-4 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-4 focus:ring-blue-100 outline-none font-bold" placeholder="••••••••" />
+                  </div>
+                </div>
               </div>
-            </div>
-            <div className="grid grid-cols-2 gap-4 pt-2">
-              <button onClick={() => handleLogin('ADMIN')} className="bg-[#003399] text-white py-4 rounded-xl font-bold text-sm hover:bg-blue-900 transition-all flex flex-col items-center gap-2 shadow-lg shadow-blue-200">
-                <ShieldCheck size={20} /> ADMIN
-              </button>
-              <button onClick={() => handleLogin('TEACHER')} className="bg-slate-800 text-white py-4 rounded-xl font-bold text-sm hover:bg-slate-900 transition-all flex flex-col items-center gap-2 shadow-lg shadow-slate-200">
-                <Users size={20} /> TEACHER
-              </button>
-            </div>
+              {loginError && <p className="text-red-500 text-[10px] font-black uppercase text-center">{loginError}</p>}
+              <button type="submit" className="w-full py-5 bg-slate-900 text-white rounded-2xl font-black uppercase tracking-widest hover:bg-black transition-all shadow-xl shadow-slate-200">Authenticate session</button>
+              <p className="text-center text-[10px] font-bold text-slate-400 uppercase tracking-tighter">Security Protocol: SAR v2.0-Audit Enabled</p>
+            </form>
           </div>
         </div>
       </div>
@@ -182,440 +210,511 @@ const App: React.FC = () => {
   }
 
   return (
-    <div className="flex min-h-screen bg-[#f8fafc]">
-      <aside className="w-72 bg-white border-r border-slate-200 flex flex-col shadow-sm">
-        <div className="p-6 border-b flex items-center gap-3">
-          <img src={BIET_LOGO} className="w-8 h-8" alt="BIET" />
-          <div>
-            <h2 className="font-black text-slate-800 text-sm leading-tight uppercase">OBE Console</h2>
-            <p className="text-[10px] text-blue-600 font-bold uppercase tracking-wider">{user?.role} SESSION</p>
+    <div className="flex min-h-screen bg-[#f8fafc] text-slate-900 font-sans">
+      <aside className="w-72 bg-white border-r border-slate-200 flex flex-col fixed inset-y-0 shadow-sm z-50">
+        <div className="p-8 border-b">
+          <div className="flex items-center gap-3">
+            <img src={BIET_LOGO} className="w-8 h-8" alt="BIET" />
+            <span className="font-black text-xs uppercase tracking-tighter">OBE Console v2.0</span>
           </div>
         </div>
-        <nav className="flex-1 p-4 space-y-1 mt-4">
-          {user?.role === 'ADMIN' ? (
-            <>
-              <NavItem icon={<Database size={18}/>} label="Dashboard" active={view === 'ADMIN_DASH'} onClick={() => setView('ADMIN_DASH')} />
-              <NavItem icon={<Users size={18}/>} label="Faculty Registry" active={view === 'ADMIN_FACULTY'} onClick={() => setView('ADMIN_FACULTY')} />
-              <NavItem icon={<UserPlus size={18}/>} label="Course Allotment" active={view === 'ADMIN_ALLOTMENT'} onClick={() => setView('ADMIN_ALLOTMENT')} />
-              <NavItem icon={<Settings size={18}/>} label="Attainment Config" active={view === 'ADMIN_CONFIG'} onClick={() => setView('ADMIN_CONFIG')} />
-            </>
-          ) : (
-            <>
-              <NavItem icon={<TrendingUp size={18}/>} label="Dashboard" active={view === 'TEACHER_DASH'} onClick={() => setView('TEACHER_DASH')} />
-              <NavItem icon={<BookOpen size={18}/>} label="My Courses" active={view === 'MY_COURSES' || view === 'CALCULATION_VIEW'} onClick={() => setView('MY_COURSES')} />
-              <NavItem icon={<FileSpreadsheet size={18}/>} label="Mark Sheets" active={view === 'MARK_ENTRY'} onClick={() => setView('MARK_ENTRY')} />
-            </>
+        <nav className="flex-1 p-6 space-y-1">
+          <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4 px-3">Main Navigation</p>
+          <NavItem icon={<LayoutDashboard size={18}/>} label="Dashboard" active={view === 'DASHBOARD'} onClick={() => setView('DASHBOARD')} />
+          {user?.role === 'ADMIN' && (
+            <div className="pt-6 space-y-1">
+              <p className="text-[10px] font-black text-blue-600 uppercase tracking-widest mb-4 px-3">Admin Panel</p>
+              <NavItem icon={<Users size={18}/>} label="Faculty Registry" active={view === 'FACULTY'} onClick={() => setView('FACULTY')} />
+              <NavItem icon={<Layers size={18}/>} label="Allotment Matrix" active={view === 'ALLOTMENT'} onClick={() => setView('ALLOTMENT')} />
+              <NavItem icon={<Building2 size={18}/>} label="Departments" active={false} />
+              <NavItem icon={<Settings size={18}/>} label="OBE Master Config" active={view === 'CONFIG'} onClick={() => setView('CONFIG')} />
+            </div>
+          )}
+          {user?.role === 'TEACHER' && (
+            <div className="pt-6 space-y-1">
+              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4 px-3">Instructional Tools</p>
+              <NavItem icon={<BookOpen size={18}/>} label="My Workload" active={view === 'MY_COURSES' || view === 'COURSE_MANAGE'} onClick={() => setView('MY_COURSES')} />
+              <NavItem icon={<ClipboardCheck size={18}/>} label="Attainment Sheets" active={false} />
+            </div>
           )}
         </nav>
-        <div className="p-4 border-t">
-          <div className="bg-slate-50 rounded-xl p-3 mb-4 flex items-center gap-3">
-             <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-blue-700 font-bold text-xs uppercase">
-               {user?.name.charAt(0)}
-             </div>
+        <div className="p-6 mt-auto border-t bg-slate-50/50">
+          <div className="flex items-center gap-4 mb-4">
+             <div className="w-10 h-10 rounded-2xl bg-slate-900 text-white flex items-center justify-center font-black text-xs uppercase">{user?.name.charAt(0)}</div>
              <div className="overflow-hidden">
-               <p className="text-[10px] font-black text-slate-800 truncate">{user?.name}</p>
-               <p className="text-[9px] text-slate-400 truncate">{user?.email}</p>
+               <p className="text-[10px] font-black text-slate-800 uppercase truncate">{user?.name}</p>
+               <p className="text-[9px] text-slate-400 font-bold uppercase truncate">{user?.role} Access</p>
              </div>
           </div>
-          <button onClick={() => setView('LOGIN')} className="w-full flex items-center gap-3 p-3 text-slate-500 font-bold text-xs hover:text-red-600 transition-all rounded-lg">
-            <LogOut size={16} /> Logout
-          </button>
+          <button onClick={() => setView('LOGIN')} className="w-full py-3 bg-white border border-slate-200 rounded-xl text-[10px] font-black text-slate-500 uppercase tracking-widest hover:text-red-600 transition-all shadow-sm">Terminate Session</button>
         </div>
       </aside>
 
-      <main className="flex-1 flex flex-col overflow-hidden">
-        <header className="h-16 bg-white border-b flex items-center justify-between px-8">
-          <div className="flex items-center gap-2">
-            <span className="text-slate-400 font-medium text-[10px] uppercase tracking-widest">Workspace /</span>
-            <span className="text-slate-800 font-bold text-xs uppercase tracking-tight">{view.replace('_', ' ')}</span>
+      <main className="flex-1 ml-72">
+        <header className="h-20 bg-white border-b flex items-center justify-between px-10 sticky top-0 z-40">
+          <div className="flex items-center gap-6">
+            <div className="flex items-center gap-2">
+              <Calendar size={16} className="text-slate-400" />
+              <select value={activeYear} onChange={e => setActiveYear(e.target.value)} className="bg-transparent font-black text-xs uppercase tracking-tight outline-none cursor-pointer">
+                <option>2024-25</option>
+                <option>2023-24</option>
+              </select>
+            </div>
+            <div className="w-px h-6 bg-slate-100"></div>
+            <div className="flex items-center gap-2">
+              <GraduationCap size={16} className="text-slate-400" />
+              <span className="font-black text-xs uppercase tracking-tight">{activeDept} Branch</span>
+            </div>
           </div>
-          <div className="bg-blue-50 text-blue-700 px-4 py-1.5 rounded-full text-[10px] font-black uppercase border border-blue-100">
-            {config.institutionName}
+          <div className="flex items-center gap-4">
+            <div className="flex items-center gap-2 px-4 py-2 bg-slate-50 rounded-xl border border-slate-200">
+               <UserCog size={14} className="text-blue-600" />
+               <span className="text-[10px] font-black uppercase text-slate-800">{user?.role} Workspace</span>
+            </div>
           </div>
         </header>
 
-        <div className="flex-1 overflow-y-auto p-8 relative">
+        <div className="p-10 max-w-7xl mx-auto space-y-10 pb-24">
           
-          {/* FACULTY REGISTRY (ADMIN_FACULTY) */}
-          {view === 'ADMIN_FACULTY' && (
-            <div className="space-y-8 animate-in fade-in duration-500 max-w-6xl">
-              <div className="flex justify-between items-end">
-                <div>
-                  <h2 className="text-2xl font-black text-slate-800">Faculty Registry</h2>
-                  <p className="text-slate-400 text-sm">Create and manage institutional faculty accounts and credentials.</p>
-                </div>
-                <button 
-                  onClick={() => setIsAddFacultyModalOpen(true)}
-                  className="bg-[#003399] text-white px-6 py-2.5 rounded-xl font-bold text-xs flex items-center gap-2 hover:bg-blue-900 transition-all shadow-lg shadow-blue-100"
-                >
-                  <UserPlus size={16} /> Add New Faculty
-                </button>
-              </div>
+          {/* DASHBOARD (ADMIN/HOD) */}
+          {view === 'DASHBOARD' && (
+            <div className="space-y-10 animate-in fade-in duration-500">
+               <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+                 <StatCard label="Institutional Allotments" value={courses.length.toString()} icon={<Layers size={20}/>} trend="SAR Cycle 2024" color="blue" />
+                 <StatCard label="Awaiting HOD Action" value={courses.filter(c => c.workflowStatus === 'SUBMITTED').length.toString()} icon={<Clock size={20}/>} trend="Pending Review" color="indigo" />
+                 <StatCard label="Audit Compliant" value={courses.filter(c => c.workflowStatus === 'APPROVED').length.toString()} icon={<CheckCircle2 size={20}/>} trend="NBA Ready" color="green" />
+                 <StatCard label="Active Faculty" value={users.filter(u => u.role === 'TEACHER').length.toString()} icon={<Users size={20}/>} trend="Total Staff" color="blue" />
+               </div>
 
-              <div className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden">
-                <table className="w-full text-left">
-                  <thead className="bg-slate-50 border-b border-slate-100">
-                    <tr className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
-                      <th className="p-6">Faculty Name</th>
-                      <th className="p-6">Email / Username</th>
-                      <th className="p-6">Department</th>
-                      <th className="p-6 text-center">Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100">
-                    {faculty.map(f => (
-                      <tr key={f.id} className="hover:bg-slate-50/50 transition-all">
-                        <td className="p-6 flex items-center gap-3">
-                           <div className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center text-slate-400 font-black text-xs uppercase">
-                             {f.name.charAt(0)}
+               <div className="bg-white rounded-[2rem] border border-slate-200 p-8 shadow-sm">
+                  <div className="flex justify-between items-center mb-8">
+                    <h3 className="text-sm font-black uppercase tracking-widest text-slate-800 flex items-center gap-3">
+                      <History size={18} className="text-blue-600"/> Review Workflow Queue
+                    </h3>
+                    <div className="flex gap-2">
+                       <button className="px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-[9px] font-black uppercase tracking-widest text-slate-500 hover:bg-slate-100">Filter By Status</button>
+                    </div>
+                  </div>
+                  <div className="space-y-3">
+                    {courses.map(course => (
+                      <div key={course.id} className="flex items-center justify-between p-5 bg-slate-50/50 rounded-2xl border border-slate-100 hover:border-slate-300 transition-all group">
+                        <div className="flex items-center gap-5">
+                           <div className="w-12 h-12 bg-white rounded-xl shadow-sm flex items-center justify-center font-black text-xs text-blue-600 border border-slate-100 group-hover:bg-blue-600 group-hover:text-white transition-all">{course.code}</div>
+                           <div>
+                             <p className="font-bold text-sm text-slate-800">{course.name}</p>
+                             <p className="text-[9px] text-slate-400 font-bold uppercase tracking-tight">Lead Instructor: {users.find(u => u.id === course.teacherId)?.name}</p>
                            </div>
-                           <p className="font-bold text-slate-800 text-sm">{f.name}</p>
-                        </td>
-                        <td className="p-6">
-                           <p className="text-xs font-medium text-slate-600">{f.email}</p>
-                        </td>
-                        <td className="p-6">
-                           <span className="bg-blue-50 text-blue-700 px-2 py-1 rounded text-[9px] font-black uppercase border border-blue-100">{f.departmentId}</span>
-                        </td>
-                        <td className="p-6 text-center space-x-2">
-                           <button className="text-blue-600 hover:bg-blue-50 p-2 rounded-lg transition-all" title="Reset Password">
-                             <Key size={16} />
-                           </button>
-                           <button onClick={() => handleDeleteFaculty(f.id)} className="text-red-500 hover:bg-red-50 p-2 rounded-lg transition-all" title="Remove Faculty">
-                             <Trash2 size={16} />
-                           </button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          )}
-
-          {/* FACULTY ALLOTMENT (ADMIN_ALLOTMENT) */}
-          {view === 'ADMIN_ALLOTMENT' && (
-            <div className="space-y-8 animate-in fade-in duration-500">
-              <div className="flex justify-between items-end">
-                <div>
-                  <h2 className="text-2xl font-black text-slate-800">Course Allotment</h2>
-                  <p className="text-slate-400 text-sm font-medium">Map subject codes to corresponding faculty in-charges for specific years.</p>
-                </div>
-              </div>
-
-              <div className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden">
-                <table className="w-full text-left">
-                  <thead className="bg-slate-50 border-b border-slate-100">
-                    <tr className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
-                      <th className="p-6">Branch & Code</th>
-                      <th className="p-6">Subject Name</th>
-                      <th className="p-6">Academic Year</th>
-                      <th className="p-6">Assigned Faculty</th>
-                      <th className="p-6 text-center">Status</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100">
-                    {courses.map(course => {
-                      const currentTeacher = faculty.find(f => f.id === course.teacherId);
-                      return (
-                        <tr key={course.id} className="hover:bg-slate-50/50 transition-all">
-                          <td className="p-6">
-                            <span className="bg-blue-50 text-blue-700 px-2 py-1 rounded text-[10px] font-black uppercase tracking-tighter border border-blue-100">{course.departmentId} • {course.code}</span>
-                          </td>
-                          <td className="p-6">
-                            <p className="font-bold text-slate-800 text-sm leading-tight">{course.name}</p>
-                          </td>
-                          <td className="p-6 font-black text-slate-500 text-xs tracking-tight">{course.academicYear}</td>
-                          <td className="p-6">
-                            <select 
-                              value={course.teacherId} 
-                              onChange={(e) => handleAllotmentChange(course.id, e.target.value)}
-                              className="w-full bg-white border border-slate-200 rounded-xl px-4 py-2.5 text-xs font-bold text-slate-700 focus:ring-2 focus:ring-blue-500 outline-none appearance-none cursor-pointer"
-                            >
-                              <option value="">Unassigned</option>
-                              {faculty.map(f => <option key={f.id} value={f.id}>{f.name} ({f.departmentId})</option>)}
-                            </select>
-                          </td>
-                          <td className="p-6 text-center">
-                            {course.teacherId ? (
-                              <span className="flex items-center justify-center gap-1.5 text-[9px] font-black text-green-600 bg-green-50 px-3 py-1.5 rounded-full border border-green-100 uppercase"><UserCheck size={12}/> Assigned</span>
-                            ) : (
-                              <span className="flex items-center justify-center gap-1.5 text-[9px] font-black text-red-600 bg-red-50 px-3 py-1.5 rounded-full border border-red-100 uppercase"><AlertCircle size={12}/> Pending</span>
-                            )}
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          )}
-
-          {/* ATTAINMENT CONFIG */}
-          {view === 'ADMIN_CONFIG' && (
-            <div className="space-y-8 animate-in slide-in-from-bottom-4 duration-500 max-w-3xl mx-auto">
-              <div className="text-center">
-                <h2 className="text-3xl font-black text-slate-800">OBE Configuration</h2>
-                <p className="text-slate-400 text-sm">Define global thresholds and institutional parameters.</p>
-              </div>
-
-              <div className="bg-white rounded-3xl border border-slate-200 p-8 shadow-xl shadow-slate-200/50 space-y-8">
-                <div className="space-y-4">
-                  <label className="text-xs font-black text-slate-500 uppercase tracking-widest">Institutional Identity</label>
-                  <input 
-                    type="text" 
-                    value={config.institutionName} 
-                    onChange={(e) => setConfig({...config, institutionName: e.target.value})}
-                    className="w-full px-6 py-4 bg-slate-50 border border-slate-200 rounded-2xl font-bold text-slate-800 focus:ring-4 focus:ring-blue-100 outline-none transition-all"
-                  />
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                  {[1, 2, 3].map(level => (
-                    <div key={level} className="space-y-2">
-                      <label className="text-[10px] font-black text-slate-500 uppercase">Level {level} Threshold (%)</label>
-                      <input 
-                        type="number" 
-                        value={(config.attainmentLevels as any)[`level${level}`]} 
-                        onChange={(e) => setConfig({
-                          ...config, 
-                          attainmentLevels: { ...config.attainmentLevels, [`level${level}`]: parseInt(e.target.value) }
-                        })}
-                        className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl font-black text-blue-600 text-center focus:ring-4 focus:ring-blue-100 outline-none"
-                      />
-                    </div>
-                  ))}
-                </div>
-
-                <button className="w-full bg-[#003399] text-white py-4 rounded-2xl font-black uppercase tracking-widest flex items-center justify-center gap-3 shadow-xl shadow-blue-200 hover:bg-blue-900 transition-all">
-                  <Save size={20} /> Update Configuration
-                </button>
-              </div>
-            </div>
-          )}
-
-          {/* TEACHER DASHBOARD, MY COURSES, etc. remain the same as previous updates */}
-          {view === 'TEACHER_DASH' && (
-            <div className="space-y-8 animate-in fade-in duration-500 max-w-6xl">
-              <div>
-                <h2 className="text-2xl font-black text-slate-800">Hello, {user?.name}</h2>
-                <p className="text-slate-400 text-sm">Overview of your multi-branch attainment status.</p>
-              </div>
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-                <StatCard label="Total Students" value="340" icon={<Users size={16} />} color="blue" />
-                <StatCard label="My Subjects" value={filteredCourses.length.toString()} icon={<BookOpen size={16} />} color="indigo" />
-                <StatCard label="Branches" value={uniqueDepts.length.toString()} icon={<GraduationCap size={16} />} color="orange" />
-                <StatCard label="Avg Attainment" value="2.1" icon={<TrendingUp size={16} />} color="green" />
-              </div>
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                <section className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
-                  <h3 className="font-bold text-slate-800 mb-4 flex items-center gap-2"><Clock size={18} className="text-blue-600"/> Recent Activity</h3>
-                  <div className="space-y-4">
-                    <TaskItem title="Marks Calculated" subtitle="KCS-501 (IT Branch)" tag="COMPLETED" color="blue" />
-                    <TaskItem title="Mapping Verified" subtitle="KCS-301 (CS Branch)" tag="COMPLETED" color="blue" />
-                  </div>
-                </section>
-                <section className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm flex flex-col justify-center items-center text-center">
-                  <div className="w-16 h-16 bg-blue-50 text-blue-600 rounded-full flex items-center justify-center mb-4">
-                    <Calculator size={32} />
-                  </div>
-                  <h3 className="font-bold text-slate-800 mb-2">Branch-wise Reports</h3>
-                  <p className="text-xs text-slate-500 mb-6 max-w-[240px]">Navigate to "My Courses" to view attainment for specific years and departments.</p>
-                  <button onClick={() => setView('MY_COURSES')} className="bg-[#003399] text-white px-6 py-2.5 rounded-xl font-bold text-xs flex items-center gap-2 hover:bg-blue-900 transition-all">
-                    Go to My Courses <ArrowRight size={14} />
-                  </button>
-                </section>
-              </div>
-            </div>
-          )}
-
-          {view === 'MY_COURSES' && (
-            <div className="space-y-6 animate-in fade-in duration-500 max-w-6xl">
-              <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-4">
-                <div>
-                  <h2 className="text-2xl font-black text-slate-800">My Allotted Courses</h2>
-                  <p className="text-slate-400 text-sm font-medium">Managing {filteredCourses.length} cohorts across branches.</p>
-                </div>
-                <div className="flex gap-3 w-full md:w-auto">
-                  <select value={yearFilter} onChange={(e) => setYearFilter(e.target.value)} className="px-4 py-2 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-600 outline-none">
-                    <option value="All">All Years</option>
-                    {uniqueYears.map(y => <option key={y} value={y}>{y}</option>)}
-                  </select>
-                  <select value={deptFilter} onChange={(e) => setDeptFilter(e.target.value)} className="px-4 py-2 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-600 outline-none">
-                    <option value="All">All Branches</option>
-                    {uniqueDepts.map(d => <option key={d} value={d}>{d}</option>)}
-                  </select>
-                </div>
-              </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {filteredCourses.map(course => (
-                  <div key={course.id} onClick={() => handleCourseSelect(course)} className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm hover:shadow-md cursor-pointer transition-all group border-l-4 border-l-blue-600">
-                    <div className="flex justify-between mb-4">
-                      <div className="flex gap-2">
-                        <span className="bg-blue-100 text-blue-700 px-2.5 py-1 rounded text-[10px] font-black uppercase tracking-wider">{course.code}</span>
-                        <span className="bg-slate-100 text-slate-600 px-2.5 py-1 rounded text-[10px] font-black uppercase tracking-wider">{course.academicYear}</span>
+                        </div>
+                        <div className="flex items-center gap-4">
+                           <span className={`px-3 py-1.5 rounded-full text-[8px] font-black uppercase border ${getStatusColor(course.workflowStatus)}`}>{course.workflowStatus}</span>
+                           {user?.role === 'ADMIN' && course.workflowStatus === 'SUBMITTED' && (
+                             <div className="flex gap-2">
+                                <button onClick={() => updateWorkflow(course.id, 'APPROVED')} className="p-2.5 bg-green-50 text-green-700 rounded-xl hover:bg-green-100 transition-colors" title="Approve"><Check size={18}/></button>
+                                <button onClick={() => updateWorkflow(course.id, 'REJECTED')} className="p-2.5 bg-red-50 text-red-700 rounded-xl hover:bg-red-100 transition-colors" title="Reject"><X size={18}/></button>
+                             </div>
+                           )}
+                           <button onClick={() => { setActiveCourse(course); setView('COURSE_MANAGE'); }} className="p-2.5 hover:bg-slate-200 rounded-xl transition-colors"><ChevronRight size={18}/></button>
+                        </div>
                       </div>
-                      <ChevronRight className="text-slate-300 group-hover:text-blue-600" />
-                    </div>
-                    <h3 className="font-bold text-slate-800 text-lg group-hover:text-[#003399] transition-colors">{course.name}</h3>
-                    <p className="text-blue-600 font-black text-[10px] uppercase tracking-widest mt-1">{course.departmentId} BRANCH</p>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* ADMIN DASHBOARD HEATMAP */}
-          {view === 'ADMIN_DASH' && (
-            <div className="space-y-8 animate-in fade-in duration-500">
-              <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-                <div>
-                  <h2 className="text-2xl font-black text-slate-800 uppercase tracking-tight">Institutional Heatmap</h2>
-                  <p className="text-slate-500 text-sm">Cross-branch attainment visibility for all allotted faculty.</p>
-                </div>
-                <button className="px-6 py-3 bg-[#003399] text-white rounded-2xl text-xs font-black uppercase tracking-widest shadow-xl shadow-blue-100 hover:bg-blue-900 transition-all">Generate SAR Report</button>
-              </div>
-              <div className="bg-white rounded-3xl border border-slate-200 shadow-xl overflow-hidden">
-                <div className="overflow-x-auto">
-                  <table className="w-full text-[10px] font-black text-center border-collapse">
-                    <thead className="bg-slate-900 text-white uppercase tracking-widest">
-                      <tr>
-                        <th className="p-6 text-left border-r border-slate-800 min-w-[280px]">Cohort Information</th>
-                        {pos.map(po => <th key={po.id} className="p-6 border-r border-slate-800">{po.code}</th>)}
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-100">
-                      {courses.map(course => (
-                        <tr key={course.id} className="hover:bg-slate-50 transition-all">
-                          <td className="p-6 text-left border-r border-slate-100">
-                            <p className="font-black text-sm text-slate-800 leading-none">{course.code}</p>
-                            <p className="text-[10px] text-slate-500 uppercase mt-1">{course.name}</p>
-                          </td>
-                          {pos.map(po => {
-                            const val = (Math.random() * 2 + 1).toFixed(2);
-                            return <td key={po.id} className="p-6 border-r border-slate-50 font-black text-xs">{val}</td>;
-                          })}
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* ADD FACULTY MODAL */}
-          {isAddFacultyModalOpen && (
-            <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-6">
-               <div className="bg-white rounded-3xl w-full max-w-md overflow-hidden shadow-2xl animate-in zoom-in-95 duration-200">
-                  <div className="bg-[#003399] p-6 text-white flex justify-between items-center">
-                    <h3 className="font-black uppercase tracking-widest text-sm flex items-center gap-2"><UserPlus size={18}/> New Faculty Member</h3>
-                    <button onClick={() => setIsAddFacultyModalOpen(false)} className="hover:bg-white/20 p-1 rounded-full transition-all"><X size={20}/></button>
-                  </div>
-                  <div className="p-8 space-y-6">
-                    <div className="space-y-2">
-                      <label className="text-[10px] font-black text-slate-500 uppercase">Full Name</label>
-                      <input 
-                        type="text" 
-                        value={newFaculty.name}
-                        onChange={e => setNewFaculty({...newFaculty, name: e.target.value})}
-                        placeholder="Dr. Rajesh Kumar" 
-                        className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl font-bold text-sm focus:ring-2 focus:ring-blue-500 outline-none" 
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <label className="text-[10px] font-black text-slate-500 uppercase">Institutional Email / Username</label>
-                      <input 
-                        type="email" 
-                        value={newFaculty.email}
-                        onChange={e => setNewFaculty({...newFaculty, email: e.target.value})}
-                        placeholder="rkumar@bietj.ac.in" 
-                        className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl font-bold text-sm focus:ring-2 focus:ring-blue-500 outline-none" 
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <label className="text-[10px] font-black text-slate-500 uppercase">Allotted Branch</label>
-                      <select 
-                        value={newFaculty.departmentId}
-                        onChange={e => setNewFaculty({...newFaculty, departmentId: e.target.value})}
-                        className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl font-bold text-sm focus:ring-2 focus:ring-blue-500 outline-none"
-                      >
-                        <option value="IT">Information Technology</option>
-                        <option value="CS">Computer Science</option>
-                        <option value="AI-ML">AI & ML</option>
-                        <option value="ECE">Electronics & Communication</option>
-                      </select>
-                    </div>
-                    <div className="space-y-2">
-                      <label className="text-[10px] font-black text-slate-500 uppercase">Login Password</label>
-                      <input 
-                        type="password" 
-                        value={newFaculty.password}
-                        onChange={e => setNewFaculty({...newFaculty, password: e.target.value})}
-                        placeholder="••••••••" 
-                        className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl font-bold text-sm focus:ring-2 focus:ring-blue-500 outline-none" 
-                      />
-                    </div>
-                    <button 
-                      onClick={handleAddFaculty}
-                      className="w-full bg-[#003399] text-white py-4 rounded-xl font-black uppercase tracking-widest hover:bg-blue-900 transition-all shadow-xl shadow-blue-100"
-                    >
-                      Create Account
-                    </button>
+                    ))}
                   </div>
                </div>
             </div>
           )}
 
+          {/* FACULTY REGISTRY (ADMIN PORTAL) */}
+          {view === 'FACULTY' && (
+            <div className="space-y-8 animate-in fade-in">
+               <div className="flex justify-between items-end">
+                  <div>
+                    <h2 className="text-2xl font-black text-slate-800 uppercase">Institutional Faculty Directory</h2>
+                    <p className="text-slate-400 text-sm">Review teaching staff and access credentials.</p>
+                  </div>
+                  <button className="bg-slate-900 text-white px-8 py-4 rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-black transition-all shadow-xl">Onboard New Faculty</button>
+               </div>
+               <div className="bg-white rounded-[2.5rem] border border-slate-200 overflow-hidden shadow-sm">
+                  <table className="w-full text-left border-collapse">
+                     <thead className="bg-slate-50 border-b">
+                        <tr className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                           <th className="p-8">Faculty Member</th>
+                           <th className="p-8">Email ID</th>
+                           <th className="p-8">Department</th>
+                           <th className="p-8">Access Status</th>
+                           <th className="p-8 text-right">Actions</th>
+                        </tr>
+                     </thead>
+                     <tbody className="divide-y divide-slate-100">
+                        {users.filter(u => u.role === 'TEACHER').map(f => (
+                          <tr key={f.id} className="hover:bg-slate-50/50 transition-all">
+                             <td className="p-8">
+                               <div className="flex items-center gap-4">
+                                  <div className="w-10 h-10 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center font-black text-xs uppercase">{f.name.charAt(0)}</div>
+                                  <p className="font-bold text-slate-800">{f.name}</p>
+                               </div>
+                             </td>
+                             <td className="p-8 text-xs font-bold text-slate-400 font-mono tracking-tight">{f.email}</td>
+                             <td className="p-8 text-[10px] font-black text-slate-500 uppercase">{f.departmentId}</td>
+                             <td className="p-8">
+                                <span className="px-3 py-1 bg-green-50 text-green-600 rounded-full text-[8px] font-black uppercase border border-green-100">Verified</span>
+                             </td>
+                             <td className="p-8 text-right">
+                                <button className="p-2 text-slate-300 hover:text-blue-600 transition-colors"><Settings size={18}/></button>
+                                <button className="p-2 text-slate-300 hover:text-red-600 transition-colors"><Trash2 size={18}/></button>
+                             </td>
+                          </tr>
+                        ))}
+                     </tbody>
+                  </table>
+               </div>
+            </div>
+          )}
+
+          {/* ALLOTMENT MATRIX (ADMIN PORTAL) */}
+          {view === 'ALLOTMENT' && (
+            <div className="space-y-10 animate-in fade-in duration-500">
+               <div className="flex justify-between items-end">
+                 <div>
+                   <h2 className="text-2xl font-black text-slate-800 uppercase">Course Allotment Master</h2>
+                   <p className="text-slate-500 text-sm">Assign faculty members to institutional courses for the {activeYear} session.</p>
+                 </div>
+                 <div className="flex gap-4">
+                   <button className="px-6 py-3 bg-white border border-slate-200 rounded-xl text-[10px] font-black uppercase text-slate-500 hover:bg-slate-50 transition-all">Bulk Allotment (Excel)</button>
+                 </div>
+               </div>
+               <div className="bg-white rounded-[2rem] border border-slate-200 overflow-hidden shadow-sm">
+                 <table className="w-full text-left">
+                   <thead className="bg-slate-50 border-b">
+                     <tr className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                       <th className="p-8">Subject Code</th>
+                       <th className="p-8">Course Name</th>
+                       <th className="p-8">Allotted Instructor</th>
+                       <th className="p-8 text-right">Status</th>
+                     </tr>
+                   </thead>
+                   <tbody className="divide-y divide-slate-100">
+                      {courses.map(c => (
+                        <tr key={c.id} className="hover:bg-slate-50/50 transition-all">
+                          <td className="p-8 font-black text-blue-600 text-sm">{c.code}</td>
+                          <td className="p-8 font-bold text-slate-800 text-sm">{c.name}</td>
+                          <td className="p-8">
+                             <div className="relative max-w-xs">
+                               <select 
+                                 value={c.teacherId} 
+                                 onChange={(e) => updateAllotment(c.id, e.target.value)}
+                                 className="w-full appearance-none bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-xs font-black outline-none focus:ring-2 focus:ring-blue-100 transition-all cursor-pointer pr-10"
+                               >
+                                 {users.filter(u => u.role === 'TEACHER').map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+                               </select>
+                               <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+                             </div>
+                          </td>
+                          <td className="p-8 text-right">
+                             <span className={`px-3 py-1.5 rounded-full text-[8px] font-black uppercase border ${getStatusColor(c.workflowStatus)}`}>{c.workflowStatus}</span>
+                          </td>
+                        </tr>
+                      ))}
+                   </tbody>
+                 </table>
+               </div>
+               <div className="p-6 bg-blue-600 rounded-[2rem] text-white flex justify-between items-center shadow-xl shadow-blue-100">
+                  <div className="flex items-center gap-4">
+                    <div className="p-3 bg-white/10 rounded-xl"><AlertCircle size={24}/></div>
+                    <div>
+                      <p className="text-[10px] font-black uppercase opacity-60">Compliance Alert</p>
+                      <p className="font-bold text-sm">3 Courses currently unmapped to POs. Action Required.</p>
+                    </div>
+                  </div>
+                  <button className="px-8 py-3 bg-white text-blue-600 rounded-xl font-black text-[10px] uppercase shadow-lg">Push Reminder to Faculty</button>
+               </div>
+            </div>
+          )}
+
+          {/* MY WORKLOAD (TEACHER VIEW) */}
+          {view === 'MY_COURSES' && (
+            <div className="space-y-10 animate-in fade-in duration-500">
+               <div>
+                 <h2 className="text-3xl font-black text-slate-800 tracking-tight uppercase">Faculty Workstation</h2>
+                 <p className="text-slate-500 text-sm font-medium">Manage course outcomes and calculate attainment for Session {activeYear}.</p>
+               </div>
+               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+                 {courses.filter(c => c.teacherId === user?.id).map(course => (
+                   <div key={course.id} onClick={() => { setActiveCourse(course); setView('COURSE_MANAGE'); }} className="bg-white rounded-[2.5rem] border border-slate-200 overflow-hidden shadow-sm hover:shadow-xl transition-all group cursor-pointer flex flex-col">
+                     <div className="p-8 flex-1">
+                       <div className="flex justify-between items-start mb-6">
+                         <span className="bg-blue-100 text-blue-700 px-3 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest">{course.code}</span>
+                         <span className={`px-3 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest border ${getStatusColor(course.workflowStatus)}`}>{course.workflowStatus}</span>
+                       </div>
+                       <h4 className="text-xl font-black text-slate-800 leading-tight mb-2 group-hover:text-blue-600 transition-colors">{course.name}</h4>
+                       <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mb-8">Branch: {course.departmentId}</p>
+                       <div className="space-y-4">
+                         <div className="flex items-center justify-between text-[10px] font-black uppercase tracking-widest text-slate-500">
+                           <span>Progress</span>
+                           <span>{course.completionProgress}%</span>
+                         </div>
+                         <div className="h-1.5 bg-slate-100 rounded-full overflow-hidden"><div className="h-full bg-blue-600" style={{ width: `${course.completionProgress}%` }}></div></div>
+                       </div>
+                     </div>
+                     <div className="px-8 py-5 bg-slate-50 border-t flex justify-between items-center">
+                        <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Open Workstation</span>
+                        <ChevronRight size={16} className="text-slate-300 group-hover:translate-x-1 transition-transform" />
+                     </div>
+                   </div>
+                 ))}
+               </div>
+            </div>
+          )}
+
+          {/* COURSE MANAGEMENT (FACULTY WORKFLOW) */}
+          {view === 'COURSE_MANAGE' && activeCourse && (
+            <div className="space-y-10 animate-in slide-in-from-bottom-4 duration-500">
+               <div className="flex items-center gap-4">
+                 <button onClick={() => setView(user?.role === 'ADMIN' ? 'DASHBOARD' : 'MY_COURSES')} className="p-3 bg-white border rounded-2xl text-slate-400 hover:text-slate-800 shadow-sm transition-all"><ArrowRight size={20} className="rotate-180"/></button>
+                 <div>
+                   <h2 className="text-2xl font-black text-slate-800 uppercase tracking-tight">{activeCourse.code}: {activeCourse.name}</h2>
+                   <div className="flex gap-4 mt-1">
+                     <button onClick={() => setCourseTab('CO')} className={`text-[10px] font-black uppercase tracking-widest py-2 border-b-2 transition-all ${courseTab === 'CO' ? 'border-blue-600 text-blue-600' : 'border-transparent text-slate-400'}`}>1. Outcomes (CO)</button>
+                     <button onClick={() => setCourseTab('MAPPING')} className={`text-[10px] font-black uppercase tracking-widest py-2 border-b-2 transition-all ${courseTab === 'MAPPING' ? 'border-blue-600 text-blue-600' : 'border-transparent text-slate-400'}`}>2. Articulation Matrix</button>
+                     <button onClick={() => setCourseTab('MARKS')} className={`text-[10px] font-black uppercase tracking-widest py-2 border-b-2 transition-all ${courseTab === 'MARKS' ? 'border-blue-600 text-blue-600' : 'border-transparent text-slate-400'}`}>3. Mark Entry</button>
+                     <button onClick={() => setCourseTab('ATTAINMENT')} className={`text-[10px] font-black uppercase tracking-widest py-2 border-b-2 transition-all ${courseTab === 'ATTAINMENT' ? 'border-blue-600 text-blue-600' : 'border-transparent text-slate-400'}`}>4. Attainment Results</button>
+                   </div>
+                 </div>
+               </div>
+
+               <div className="bg-white rounded-[2.5rem] border border-slate-200 p-10 shadow-sm min-h-[500px]">
+                  {courseTab === 'CO' && (
+                    <div className="space-y-8 animate-in fade-in">
+                       <div className="flex justify-between items-center">
+                         <h3 className="font-black text-sm uppercase tracking-widest text-slate-800">CO Registry</h3>
+                         <button className="flex items-center gap-2 bg-slate-900 text-white px-6 py-3 rounded-2xl text-[10px] font-black uppercase hover:bg-black shadow-xl"><Wand2 size={16}/> AI Suggest COs</button>
+                       </div>
+                       <div className="space-y-4">
+                         {courseOutcomes.map(co => (
+                           <div key={co.id} className="flex gap-6 p-6 bg-slate-50 border border-slate-100 rounded-3xl hover:border-blue-200 transition-all">
+                             <div className="w-12 h-12 rounded-2xl bg-white border border-slate-100 flex items-center justify-center font-black text-blue-600 text-xs shadow-sm">{co.code}</div>
+                             <div className="flex-1">
+                               <p className="text-sm font-semibold text-slate-700 leading-relaxed mb-4">{co.description}</p>
+                               <div className="flex gap-4">
+                                  <div className="px-3 py-1.5 bg-blue-100 text-blue-700 rounded-lg text-[9px] font-black uppercase">Target: {co.targetMarksPercentage}% Marks</div>
+                               </div>
+                             </div>
+                           </div>
+                         ))}
+                         <button className="w-full py-6 border-2 border-dashed border-slate-200 rounded-3xl text-slate-300 font-black uppercase text-[10px] tracking-widest hover:border-blue-300 hover:text-blue-400 transition-all">Add New Outcome</button>
+                       </div>
+                    </div>
+                  )}
+
+                  {courseTab === 'MAPPING' && (
+                    <div className="space-y-8 animate-in fade-in">
+                       <h3 className="font-black text-sm uppercase tracking-widest text-slate-800">CO-PO/PSO Articulation Matrix</h3>
+                       <div className="overflow-x-auto pb-6">
+                         <table className="w-full border-collapse">
+                            <thead>
+                              <tr className="border-b border-slate-100">
+                                <th className="p-5 text-left text-[10px] font-black text-slate-400 uppercase tracking-widest sticky left-0 bg-white z-10">Outcomes</th>
+                                {pos.map(po => <th key={po.id} className="p-5 text-center text-[10px] font-black text-slate-400 uppercase">{po.code}</th>)}
+                                {psos.map(pso => <th key={pso.id} className="p-5 text-center text-[10px] font-black text-blue-600 uppercase">{pso.code}</th>)}
+                              </tr>
+                            </thead>
+                            <tbody className="divide-y divide-slate-50">
+                              {courseOutcomes.map(co => (
+                                <tr key={co.id} className="hover:bg-slate-50/50 transition-all">
+                                  <td className="p-5 font-black text-slate-800 text-xs sticky left-0 bg-white z-10">{co.code}</td>
+                                  {pos.map(po => (
+                                    <td key={po.id} className="p-3 text-center">
+                                       <button onClick={() => toggleMapping(co.id, po.id)} className={`w-9 h-9 rounded-xl font-black text-xs transition-all ${getMappingLevel(co.id, po.id) > 0 ? 'bg-blue-600 text-white shadow-lg' : 'bg-slate-100 text-slate-300 hover:bg-slate-200'}`}>
+                                         {getMappingLevel(co.id, po.id) || '-'}
+                                       </button>
+                                    </td>
+                                  ))}
+                                  {psos.map(pso => (
+                                    <td key={pso.id} className="p-3 text-center">
+                                       <button onClick={() => toggleMapping(co.id, pso.id)} className={`w-9 h-9 rounded-xl font-black text-xs transition-all ${getMappingLevel(co.id, pso.id) > 0 ? 'bg-indigo-600 text-white shadow-lg' : 'bg-indigo-50 text-indigo-200 hover:bg-indigo-100'}`}>
+                                         {getMappingLevel(co.id, pso.id) || '-'}
+                                       </button>
+                                    </td>
+                                  ))}
+                                </tr>
+                              ))}
+                            </tbody>
+                         </table>
+                       </div>
+                    </div>
+                  )}
+
+                  {courseTab === 'MARKS' && (
+                    <div className="space-y-8 animate-in fade-in">
+                       <div className="flex justify-between items-center">
+                         <h3 className="font-black text-sm uppercase tracking-widest text-slate-800">Marks Entry Console</h3>
+                         <div className="flex gap-3">
+                           <button className="px-5 py-2.5 bg-blue-600 text-white rounded-2xl text-[10px] font-black uppercase shadow-lg hover:bg-blue-700 transition-all"><Save size={16} className="inline mr-2"/> Save Session</button>
+                         </div>
+                       </div>
+                       <div className="border border-slate-100 rounded-[2rem] overflow-hidden">
+                         <table className="w-full text-left">
+                           <thead className="bg-slate-50">
+                             <tr>
+                               <th className="p-6 text-[10px] font-black text-slate-400 uppercase tracking-widest">ID</th>
+                               <th className="p-6 text-[10px] font-black text-slate-400 uppercase tracking-widest">Name</th>
+                               {courseOutcomes.map(co => <th key={co.id} className="p-6 text-center text-[10px] font-black text-blue-600 uppercase">{co.code} (%)</th>)}
+                             </tr>
+                           </thead>
+                           <tbody className="divide-y divide-slate-100">
+                             {studentMarks.map((student) => (
+                               <tr key={student.studentId} className="hover:bg-slate-50/30 transition-all">
+                                 <td className="p-6 font-black text-slate-400 text-xs">{student.studentId}</td>
+                                 <td className="p-6 font-bold text-slate-800 text-sm">{student.studentName}</td>
+                                 {courseOutcomes.map(co => (
+                                   <td key={co.id} className="p-4">
+                                     <input 
+                                       type="number" 
+                                       value={student.coMarks[co.id] || ''} 
+                                       onChange={(e) => {
+                                         const val = parseInt(e.target.value);
+                                         setStudentMarks(prev => prev.map(s => s.studentId === student.studentId ? { ...s, coMarks: { ...s.coMarks, [co.id]: val } } : s));
+                                       }}
+                                       className="w-20 mx-auto block p-3 bg-white border border-slate-100 rounded-xl text-center font-black text-slate-700 outline-none focus:ring-4 focus:ring-blue-100 transition-all" 
+                                     />
+                                   </td>
+                                 ))}
+                               </tr>
+                             ))}
+                           </tbody>
+                         </table>
+                       </div>
+                    </div>
+                  )}
+
+                  {courseTab === 'ATTAINMENT' && (
+                    <div className="space-y-10 animate-in fade-in">
+                       <h3 className="font-black text-sm uppercase tracking-widest text-slate-800">Final Attainment Visualization</h3>
+                       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                         <div className="lg:col-span-2 bg-slate-50 rounded-[2.5rem] p-10 border border-slate-100">
+                           <div className="h-[300px] w-full">
+                              <ResponsiveContainer width="100%" height="100%">
+                                <ReBarChart data={attainmentData}>
+                                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
+                                  <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 10, fontWeight: 'bold', fill: '#94a3b8' }} dy={10} />
+                                  <YAxis domain={[0, 3]} axisLine={false} tickLine={false} tick={{ fontSize: 10, fontWeight: 'bold', fill: '#94a3b8' }} />
+                                  <Tooltip cursor={{ fill: '#f1f5f9' }} />
+                                  <Bar dataKey="attainment" radius={[8, 8, 0, 0]} barSize={40}>
+                                    {attainmentData.map((entry, index) => (
+                                      <Cell key={`cell-${index}`} fill={entry.attainment === 3 ? '#2563eb' : entry.attainment === 2 ? '#6366f1' : '#94a3b8'} />
+                                    ))}
+                                  </Bar>
+                                </ReBarChart>
+                              </ResponsiveContainer>
+                           </div>
+                         </div>
+                         <div className="space-y-6">
+                            <div className="bg-white border border-slate-200 rounded-[2rem] p-8">
+                               <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-6">Attainment Level Summary</p>
+                               <div className="space-y-4">
+                                  {attainmentData.map(d => (
+                                    <div key={d.name} className="flex justify-between items-center border-b border-slate-50 pb-2">
+                                       <span className="font-black text-slate-800 text-xs">{d.name}</span>
+                                       <span className={`px-3 py-1 rounded-lg text-[10px] font-black ${d.attainment === 3 ? 'bg-green-100 text-green-700' : 'bg-slate-100 text-slate-500'}`}>Level {d.attainment}</span>
+                                    </div>
+                                  ))}
+                               </div>
+                            </div>
+                            <div className="bg-blue-600 rounded-[2rem] p-8 text-white shadow-xl shadow-blue-100">
+                               <h5 className="font-black text-[10px] uppercase tracking-widest mb-4">Calculated Average</h5>
+                               <h2 className="text-4xl font-black">{(attainmentData.reduce((acc, curr) => acc + curr.attainment, 0) / attainmentData.length).toFixed(2)}</h2>
+                               <p className="text-[9px] font-bold uppercase opacity-60">Attainment Scale (0-3)</p>
+                            </div>
+                         </div>
+                       </div>
+                    </div>
+                  )}
+               </div>
+            </div>
+          )}
+
+          {/* OBE CONFIG (ADMIN PORTAL) */}
+          {view === 'CONFIG' && (
+            <div className="max-w-4xl mx-auto space-y-10 animate-in slide-in-from-bottom-4 duration-700">
+              <div className="text-center">
+                <h2 className="text-3xl font-black text-slate-900 tracking-tight uppercase">Institutional Policy Controls</h2>
+                <p className="text-slate-500 text-sm font-medium">Standardize institution-wide calculation and threshold parameters.</p>
+              </div>
+              <div className="bg-white rounded-[3rem] border border-slate-200 p-12 shadow-sm space-y-12">
+                 <section className="space-y-6">
+                   <h4 className="text-xs font-black text-blue-600 uppercase tracking-widest flex items-center gap-2"><Percent size={18}/> Global Weightage Balancer</h4>
+                   <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                     <div className="space-y-2">
+                       <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Internal (%)</label>
+                       <input 
+                         type="number" value={config.internalWeightage} 
+                         onChange={e => {
+                           const val = Math.min(100, Math.max(0, parseInt(e.target.value) || 0));
+                           setConfig({...config, internalWeightage: val, externalWeightage: 100 - val});
+                         }} 
+                         className="w-full p-5 bg-slate-50 border border-slate-200 rounded-2xl font-black text-xl outline-none focus:ring-4 focus:ring-blue-100" 
+                       />
+                     </div>
+                     <div className="space-y-2">
+                       <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">External (%)</label>
+                       <input 
+                         type="number" value={config.externalWeightage} 
+                         onChange={e => {
+                           const val = Math.min(100, Math.max(0, parseInt(e.target.value) || 0));
+                           setConfig({...config, externalWeightage: val, internalWeightage: 100 - val});
+                         }} 
+                         className="w-full p-5 bg-slate-50 border border-slate-200 rounded-2xl font-black text-xl outline-none focus:ring-4 focus:ring-blue-100" 
+                       />
+                     </div>
+                   </div>
+                 </section>
+                 <section className="space-y-6">
+                   <h4 className="text-xs font-black text-blue-600 uppercase tracking-widest flex items-center gap-2"><Target size={18}/> Attainment Level Entry Thresholds</h4>
+                   <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                     {[1, 2, 3].map(lvl => (
+                       <div key={lvl} className="p-8 bg-slate-900 rounded-[2rem] text-white shadow-xl shadow-slate-200">
+                         <p className="text-[10px] font-black text-blue-400 uppercase mb-4">Level {lvl}</p>
+                         <div className="flex items-end gap-2">
+                            <input 
+                              type="number" value={(config.attainmentLevels as any)[`level${lvl}`]} 
+                              onChange={e => setConfig({...config, attainmentLevels: {...config.attainmentLevels, [`level${lvl}`]: parseInt(e.target.value) || 0}})} 
+                              className="bg-transparent text-3xl font-black w-full outline-none border-b-2 border-white/20 focus:border-blue-400 transition-all" 
+                            />
+                            <span className="text-white/40 font-black mb-1 text-xl">%</span>
+                         </div>
+                       </div>
+                     ))}
+                   </div>
+                 </section>
+                 <button className="w-full py-6 bg-blue-600 text-white rounded-3xl font-black uppercase tracking-[0.2em] text-xs hover:bg-blue-700 transition-all shadow-2xl shadow-blue-100">Push Policy to Departments</button>
+              </div>
+            </div>
+          )}
         </div>
       </main>
     </div>
   );
 };
 
+// UI Components
 const NavItem = ({ icon, label, active = false, onClick }: { icon: React.ReactNode, label: string, active?: boolean, onClick?: () => void }) => (
-  <button 
-    onClick={onClick} 
-    className={`w-full flex items-center gap-3 p-3.5 rounded-xl text-[11px] font-black uppercase tracking-wider transition-all ${active ? 'bg-blue-50 text-[#003399] shadow-sm' : 'text-slate-500 hover:bg-slate-50'}`}
-  >
-    <span className={active ? 'text-[#003399]' : 'text-slate-400'}>{icon}</span>
+  <button onClick={onClick} className={`w-full flex items-center gap-4 p-4 rounded-2xl text-[11px] font-black uppercase tracking-widest transition-all duration-300 ${active ? 'bg-blue-600 text-white shadow-xl shadow-blue-100 translate-x-1' : 'text-slate-400 hover:bg-slate-50 hover:text-slate-600'}`}>
+    <span className={active ? 'text-white' : ''}>{icon}</span>
     <span className="flex-1 text-left">{label}</span>
-    {active && <div className="w-1.5 h-1.5 rounded-full bg-[#003399]" />}
   </button>
 );
 
-const StatCard = ({ label, value, icon, color }: { label: string, value: string, icon: React.ReactNode, color: string }) => {
-  const colorMap: Record<string, string> = {
-    blue: 'text-blue-600 bg-blue-50 border-blue-100',
-    indigo: 'text-indigo-600 bg-indigo-50 border-indigo-100',
-    orange: 'text-orange-600 bg-orange-50 border-orange-100',
-    green: 'text-green-600 bg-green-50 border-green-100'
-  };
-  return (
-    <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm hover:shadow-md transition-shadow">
-      <div className={`w-10 h-10 rounded-xl flex items-center justify-center mb-4 border ${colorMap[color]}`}>
-        {icon}
-      </div>
-      <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">{label}</p>
-      <p className="text-2xl font-black text-slate-800">{value}</p>
-    </div>
-  );
-};
-
-const TaskItem = ({ title, subtitle, tag, color }: { title: string, subtitle: string, tag: string, color: string }) => {
-  const colorMap: Record<string, string> = {
+const StatCard = ({ label, value, icon, trend, color }: { label: string, value: string, icon: React.ReactNode, trend: string, color: 'blue' | 'green' | 'red' | 'indigo' }) => {
+  const colorStyles = {
+    blue: 'bg-blue-50 text-blue-600 border-blue-100',
+    green: 'bg-green-50 text-green-600 border-green-100',
     red: 'bg-red-50 text-red-600 border-red-100',
-    orange: 'bg-orange-50 text-orange-600 border-orange-100',
-    blue: 'bg-blue-50 text-blue-600 border-blue-100'
+    indigo: 'bg-indigo-50 text-indigo-600 border-indigo-100'
   };
   return (
-    <div className="flex items-center justify-between p-4 rounded-2xl border border-slate-100 hover:border-slate-300 transition-all bg-slate-50/50">
-      <div>
-        <p className="text-xs font-black text-slate-800">{title}</p>
-        <p className="text-[10px] text-slate-500 font-medium uppercase tracking-tighter mt-0.5">{subtitle}</p>
-      </div>
-      <span className={`px-2.5 py-1 rounded text-[9px] font-black border ${colorMap[color]}`}>{tag}</span>
+    <div className="bg-white rounded-[2rem] border border-slate-200 p-8 shadow-sm hover:shadow-lg transition-all group">
+       <div className={`w-12 h-12 rounded-2xl flex items-center justify-center mb-6 border transition-transform group-hover:scale-110 ${colorStyles[color]}`}>{icon}</div>
+       <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">{label}</p>
+       <h2 className="text-3xl font-black text-slate-900 mb-2">{value}</h2>
+       <p className={`text-[10px] font-black uppercase tracking-tight opacity-60`}>{trend}</p>
     </div>
   );
 };
