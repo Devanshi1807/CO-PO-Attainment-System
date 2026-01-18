@@ -31,6 +31,7 @@ const App: React.FC = () => {
   const [loginEmail, setLoginEmail] = useState('');
   const [loginPassword, setLoginPassword] = useState('');
   const [loginError, setLoginError] = useState('');
+  const [notification, setNotification] = useState<{message: string, type: 'success' | 'error'} | null>(null);
   
   // Active Management States
   const [activeCourse, setActiveCourse] = useState<Course | null>(null);
@@ -80,6 +81,11 @@ const App: React.FC = () => {
     { studentId: 'S05', studentName: 'Vikram Das', coMarks: { co1: 72, co2: 68, co3: 74 } },
   ]);
 
+  const showNotification = (message: string, type: 'success' | 'error' = 'success') => {
+    setNotification({ message, type });
+    setTimeout(() => setNotification(null), 3000);
+  };
+
   const pos: ProgramOutcome[] = useMemo(() => Array.from({ length: 12 }, (_, i) => ({ 
     id: `po${i+1}`, code: `PO${i+1}`, description: `Program Outcome ${i+1}` 
   })), []);
@@ -104,6 +110,7 @@ const App: React.FC = () => {
       setUser(foundUser);
       setView(foundUser.role === 'ADMIN' ? 'DASHBOARD' : 'MY_COURSES');
       setLoginError('');
+      showNotification(`Welcome, ${foundUser.name}`);
     } else {
       setLoginError('Invalid institutional credentials.');
     }
@@ -119,10 +126,38 @@ const App: React.FC = () => {
 
   const updateWorkflow = (courseId: string, newStatus: WorkflowStatus) => {
     setCourses(prev => prev.map(c => c.id === courseId ? { ...c, workflowStatus: newStatus, lastModified: new Date().toISOString().split('T')[0] } : c));
+    showNotification(`Workflow updated to ${newStatus}`);
   };
 
   const updateAllotment = (courseId: string, teacherId: string) => {
     setCourses(prev => prev.map(c => c.id === courseId ? { ...c, teacherId } : c));
+  };
+
+  const handleAddFaculty = () => {
+    const name = prompt("Enter Faculty Full Name:");
+    if (!name) return;
+    const email = prompt("Enter Institutional Email (@bietj.ac.in):");
+    if (!email || !email.includes('@')) {
+      alert("Invalid email format.");
+      return;
+    }
+    const newUser: User = {
+      id: `t_${Date.now()}`,
+      name,
+      email,
+      password: '123',
+      role: 'TEACHER',
+      departmentId: activeDept
+    };
+    setUsers(prev => [...prev, newUser]);
+    showNotification("Faculty onboarded successfully.");
+  };
+
+  const handleDeleteFaculty = (id: string) => {
+    if (window.confirm("Are you sure you want to remove this faculty member? This action cannot be undone.")) {
+      setUsers(prev => prev.filter(u => u.id !== id));
+      showNotification("Faculty removed from registry.");
+    }
   };
 
   const toggleMapping = (coId: string, poId: string) => {
@@ -212,7 +247,16 @@ const App: React.FC = () => {
   }
 
   return (
-    <div className="flex min-h-screen bg-[#f8fafc] text-slate-900 font-sans">
+    <div className="flex min-h-screen bg-[#f8fafc] text-slate-900 font-sans relative">
+      {notification && (
+        <div className="fixed top-6 right-6 z-[100] animate-in slide-in-from-right duration-300">
+           <div className={`px-6 py-4 rounded-2xl shadow-2xl flex items-center gap-3 border ${notification.type === 'success' ? 'bg-green-600 text-white border-green-500' : 'bg-red-600 text-white border-red-500'}`}>
+              {notification.type === 'success' ? <Check size={20}/> : <AlertCircle size={20}/>}
+              <p className="text-xs font-black uppercase tracking-widest">{notification.message}</p>
+           </div>
+        </div>
+      )}
+
       <aside className="w-72 bg-white border-r border-slate-200 flex flex-col fixed inset-y-0 shadow-sm z-50">
         <div className="p-8 border-b">
           <div className="flex items-center gap-3">
@@ -250,7 +294,7 @@ const App: React.FC = () => {
                <p className="text-[9px] text-slate-400 font-bold uppercase truncate">{user?.role} Mode</p>
              </div>
           </div>
-          <button onClick={() => setView('LOGIN')} className="w-full py-3 bg-white border border-slate-200 rounded-xl text-[10px] font-black text-slate-500 uppercase tracking-widest hover:text-red-600 transition-all shadow-sm">Terminate Session</button>
+          <button onClick={() => { setUser(null); setView('LOGIN'); }} className="w-full py-3 bg-white border border-slate-200 rounded-xl text-[10px] font-black text-slate-500 uppercase tracking-widest hover:text-red-600 transition-all shadow-sm">Terminate Session</button>
         </div>
       </aside>
 
@@ -357,7 +401,7 @@ const App: React.FC = () => {
                     <h2 className="text-2xl font-black text-slate-800 uppercase">Institutional Faculty Directory</h2>
                     <p className="text-slate-400 text-sm">Review teaching staff and access credentials.</p>
                   </div>
-                  <button className="bg-slate-900 text-white px-8 py-4 rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-black transition-all shadow-xl">Onboard New Faculty</button>
+                  <button onClick={handleAddFaculty} className="bg-slate-900 text-white px-8 py-4 rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-black transition-all shadow-xl">Onboard New Faculty</button>
                </div>
                <div className="bg-white rounded-[2.5rem] border border-slate-200 overflow-hidden shadow-sm">
                   <table className="w-full text-left border-collapse">
@@ -386,7 +430,7 @@ const App: React.FC = () => {
                              </td>
                              <td className="p-8 text-right">
                                 <button className="p-2 text-slate-300 hover:text-blue-600 transition-colors"><Settings size={18}/></button>
-                                <button className="p-2 text-slate-300 hover:text-red-600 transition-colors"><Trash2 size={18}/></button>
+                                <button onClick={() => handleDeleteFaculty(f.id)} className="p-2 text-slate-300 hover:text-red-600 transition-colors"><Trash2 size={18}/></button>
                              </td>
                           </tr>
                         ))}
@@ -405,8 +449,9 @@ const App: React.FC = () => {
                    <p className="text-slate-500 text-sm">Define outcomes that specifically describe what students of {activeDept} will be able to do.</p>
                  </div>
                  <button onClick={() => {
-                   const newPso: ProgramSpecificOutcome = { id: `pso${psos.length + 1}`, code: `PSO${psos.length + 1}`, description: 'New PSO description' };
-                   setPsos([...psos, newPso]);
+                   const newPso: ProgramSpecificOutcome = { id: `pso_${Date.now()}`, code: `PSO${psos.length + 1}`, description: 'New PSO description' };
+                   setPsos(prev => [...prev, newPso]);
+                   showNotification("New PSO defined.");
                  }} className="bg-blue-600 text-white px-8 py-4 rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-blue-700 shadow-xl">Define New PSO</button>
                </div>
                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -414,12 +459,18 @@ const App: React.FC = () => {
                    <div key={pso.id} className="bg-white rounded-[2.5rem] border border-slate-200 p-8 shadow-sm hover:border-blue-300 transition-all flex flex-col">
                       <div className="flex justify-between items-center mb-6">
                          <div className="w-12 h-12 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center font-black text-sm">{pso.code}</div>
-                         <button onClick={() => setPsos(psos.filter(p => p.id !== pso.id))} className="text-slate-300 hover:text-red-500 transition-colors"><Trash2 size={18}/></button>
+                         <button onClick={() => {
+                           setPsos(prev => prev.filter(p => p.id !== pso.id));
+                           showNotification("PSO deleted.");
+                         }} className="text-slate-300 hover:text-red-500 transition-colors"><Trash2 size={18}/></button>
                       </div>
                       <textarea 
                         className="flex-1 bg-slate-50 rounded-2xl p-4 text-sm font-medium text-slate-700 outline-none focus:ring-4 focus:ring-blue-100 min-h-[100px] border border-slate-100"
                         value={pso.description}
-                        onChange={(e) => setPsos(psos.map(p => p.id === pso.id ? {...p, description: e.target.value} : p))}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          setPsos(prev => prev.map(p => p.id === pso.id ? {...p, description: val} : p));
+                        }}
                       />
                    </div>
                  ))}
@@ -436,7 +487,7 @@ const App: React.FC = () => {
                    <p className="text-slate-500 text-sm">Assign faculty members to institutional courses for the {activeYear} session.</p>
                  </div>
                  <div className="flex gap-4">
-                   <button className="px-6 py-3 bg-white border border-slate-200 rounded-xl text-[10px] font-black uppercase text-slate-500 hover:bg-slate-50 transition-all">Bulk Allotment (Excel)</button>
+                   <button onClick={() => showNotification("Bulk allotment utility active.")} className="px-6 py-3 bg-white border border-slate-200 rounded-xl text-[10px] font-black uppercase text-slate-500 hover:bg-slate-50 transition-all">Bulk Allotment (Excel)</button>
                  </div>
                </div>
                <div className="bg-white rounded-[2rem] border border-slate-200 overflow-hidden shadow-sm">
@@ -458,7 +509,10 @@ const App: React.FC = () => {
                              <div className="relative max-w-xs">
                                <select 
                                  value={c.teacherId} 
-                                 onChange={(e) => updateAllotment(c.id, e.target.value)}
+                                 onChange={(e) => {
+                                   updateAllotment(c.id, e.target.value);
+                                   showNotification(`Re-assigned ${c.code} successfully.`);
+                                 }}
                                  className="w-full appearance-none bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-xs font-black outline-none focus:ring-2 focus:ring-blue-100 transition-all cursor-pointer pr-10"
                                >
                                  {users.filter(u => u.role === 'TEACHER').map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
@@ -473,6 +527,9 @@ const App: React.FC = () => {
                       ))}
                    </tbody>
                  </table>
+               </div>
+               <div className="flex justify-end">
+                  <button onClick={() => showNotification("Institutional allotments finalized.")} className="px-8 py-4 bg-slate-900 text-white rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-black transition-all shadow-xl">Confirm Allotment Sync</button>
                </div>
             </div>
           )}
@@ -521,7 +578,10 @@ const App: React.FC = () => {
                          <div className="flex items-end gap-2">
                             <input 
                               type="number" value={(config.attainmentLevels as any)[`level${lvl}`]} 
-                              onChange={e => setConfig({...config, attainmentLevels: {...config.attainmentLevels, [`level${lvl}`]: parseInt(e.target.value) || 0}})} 
+                              onChange={e => {
+                                const val = parseInt(e.target.value) || 0;
+                                setConfig(prev => ({...prev, attainmentLevels: {...prev.attainmentLevels, [`level${lvl}`]: val}}))
+                              }} 
                               className="bg-transparent text-3xl font-black w-full outline-none border-b-2 border-white/20 focus:border-blue-400 transition-all" 
                             />
                             <span className="text-white/40 font-black mb-1 text-xl">%</span>
@@ -530,7 +590,7 @@ const App: React.FC = () => {
                      ))}
                    </div>
                  </section>
-                 <button className="w-full py-6 bg-blue-600 text-white rounded-3xl font-black uppercase tracking-[0.2em] text-xs hover:bg-blue-700 transition-all shadow-2xl">Push Policy to Departments</button>
+                 <button onClick={() => showNotification("Policy pushed to all departments.")} className="w-full py-6 bg-blue-600 text-white rounded-3xl font-black uppercase tracking-[0.2em] text-xs hover:bg-blue-700 transition-all shadow-2xl">Push Policy to Departments</button>
               </div>
             </div>
           )}
@@ -591,7 +651,7 @@ const App: React.FC = () => {
                     <div className="space-y-8 animate-in fade-in">
                        <div className="flex justify-between items-center">
                          <h3 className="font-black text-sm uppercase tracking-widest text-slate-800">CO Registry</h3>
-                         <button className="flex items-center gap-2 bg-slate-900 text-white px-6 py-3 rounded-2xl text-[10px] font-black uppercase hover:bg-black shadow-xl"><Wand2 size={16}/> AI Suggest COs</button>
+                         <button onClick={() => showNotification("AI engine generating CO suggestions...")} className="flex items-center gap-2 bg-slate-900 text-white px-6 py-3 rounded-2xl text-[10px] font-black uppercase hover:bg-black shadow-xl"><Wand2 size={16}/> AI Suggest COs</button>
                        </div>
                        <div className="space-y-4">
                          {courseOutcomes.map(co => (
@@ -605,7 +665,7 @@ const App: React.FC = () => {
                              </div>
                            </div>
                          ))}
-                         <button className="w-full py-6 border-2 border-dashed border-slate-200 rounded-3xl text-slate-300 font-black uppercase text-[10px] tracking-widest hover:border-blue-300 hover:text-blue-400 transition-all">Add New Outcome Component</button>
+                         <button onClick={() => showNotification("Direct entry module active.")} className="w-full py-6 border-2 border-dashed border-slate-200 rounded-3xl text-slate-300 font-black uppercase text-[10px] tracking-widest hover:border-blue-300 hover:text-blue-400 transition-all">Add New Outcome Component</button>
                        </div>
                     </div>
                   )}
@@ -653,7 +713,7 @@ const App: React.FC = () => {
                        <div className="flex justify-between items-center">
                          <h3 className="font-black text-sm uppercase tracking-widest text-slate-800">Marks Entry Console</h3>
                          <div className="flex gap-3">
-                           <button className="px-5 py-2.5 bg-blue-600 text-white rounded-2xl text-[10px] font-black uppercase shadow-lg hover:bg-blue-700 transition-all"><Save size={16} className="inline mr-2"/> Save Current Grid</button>
+                           <button onClick={() => showNotification("Assessment grid saved.")} className="px-5 py-2.5 bg-blue-600 text-white rounded-2xl text-[10px] font-black uppercase shadow-lg hover:bg-blue-700 transition-all"><Save size={16} className="inline mr-2"/> Save Current Grid</button>
                          </div>
                        </div>
                        <div className="border border-slate-100 rounded-[2rem] overflow-hidden">
